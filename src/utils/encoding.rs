@@ -1,3 +1,6 @@
+use base64::{Engine as _, engine::{self, general_purpose}, alphabet};
+use std::str;
+
 pub fn encode_mod_string(mod_string: &str) -> String {
     general_purpose::STANDARD.encode(mod_string)
 }
