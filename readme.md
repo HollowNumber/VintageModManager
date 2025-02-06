@@ -1,6 +1,6 @@
 # VintageModManager
 
-VintageModManager is a Rust-based application designed to manage and organize vintage mods for various applications. This project aims to provide a comprehensive solution for mod management, including features such as encoding and decoding mod strings, handling mod information, and integrating with external services.
+VintageModManager is a Rust-based application designed to manage and organize mods for Vintage Story. This project aims to provide a comprehensive solution for mod management, including features such as encoding and decoding mod strings, handling mod information, and integrating with external services.
 
 ## Project Status
 
