@@ -11,8 +11,10 @@ async fn main() -> Result<(), reqwest::Error> {
     let logger = Logger::new("Main".to_string(), LogLevel::Info);
 
     let data = api_client.get_mod_from_id(3203).await?;
+    let data_from_name = api_client.get_mod_from_name("CarryCapacity").await?;
 
     logger.log(LogLevel::Warn, &*data);
+    logger.log(LogLevel::Info, &*data_from_name);
 
     Ok(())
 }
