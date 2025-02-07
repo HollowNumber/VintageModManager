@@ -34,7 +34,7 @@ mod tests {
         assert_eq!(query.text, Some("example".to_string()));
     }
 
-    /*[test]
+    #[test]
     fn test_query_with_order_by() {
         let query = Query::new().with_order_by(OrderBy::downloads);
         assert_eq!(query.order_by, Some(OrderBy::downloads));
@@ -44,7 +44,7 @@ mod tests {
     fn test_query_with_order_direction() {
         let query = Query::new().with_order_direction(OrderDirection::Asc);
         assert_eq!(query.order_direction, Some(OrderDirection::Asc));
-    }*/
+    }
 
     #[test]
     fn test_query_build() {

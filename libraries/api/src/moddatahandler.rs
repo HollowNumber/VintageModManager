@@ -1,9 +1,8 @@
-// src/api/moddatahandler.rs
-
 use serde::Deserialize;
+use serde::Serialize;
 use utils::{LogLevel, Logger};
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Release {
     pub releaseid: u32,
     pub mainfile: String,
@@ -16,7 +15,7 @@ pub struct Release {
     pub created: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Screenshot {
     pub fileid: u32,
     pub mainfile: String,
@@ -25,7 +24,7 @@ pub struct Screenshot {
     pub created: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Mod {
     pub modid: u32,
     pub assetid: u32,
@@ -54,7 +53,7 @@ pub struct Mod {
     pub screenshots: Vec<Screenshot>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ModData {
     pub statuscode: String,
     #[serde(rename = "mod")]

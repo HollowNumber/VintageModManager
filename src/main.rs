@@ -2,7 +2,8 @@ use tokio;
 
 use api::query::OrderBy;
 use api::query::Query;
-use api::{FileManager, VintageAPIHandler};
+use api::VintageAPIHandler;
+use utils::{Config, FileManager};
 use utils::{LogLevel, Logger};
 
 use std::path::Path;
@@ -19,6 +20,8 @@ pub enum RequestOrIOError {
     Io(#[from] std::io::Error),
     #[error("Serde Error: {0}")]
     Serde(#[from] serde_json::Error),
+    #[error("Bincode Error: {0}")]
+    Bincode(#[from] Box<bincode::Error>),
 }
 
 #[tokio::main]
@@ -37,7 +40,7 @@ async fn main() -> Result<(), RequestOrIOError> {
     let query = Query::new().with_order_by(OrderBy::last_released).build();
 
     let search_results = api_client.search_mods(query).await?;
-
+/*
     for modid in decoded_mod_string {
         let mod_data_json = api_client.get_mod_from_id(modid).await?;
         let mod_data = mod_handler.parse_mod_data(&mod_data_json)?;
@@ -61,7 +64,13 @@ async fn main() -> Result<(), RequestOrIOError> {
                 .save_file(&full_path, file_stream)
                 .await?;
         }
-    }
+    }*/
+
+    let mod_data = api_client.get_mod_from_id(3209).await?;
+    let mod_data = mod_handler.parse_mod_data(&mod_data)?;
+    //let config = Config::from_json(&mod_data)?;
+    // Save the mod data to a file
+
 
     //logger.log(LogLevel::Warn, &*data);
     //logger.log(LogLevel::Info, &*data_from_name);

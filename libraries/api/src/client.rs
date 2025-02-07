@@ -1,6 +1,8 @@
 use reqwest::Client;
 use utils::{LogLevel, Logger};
 
+// TODO: Test if i can load the mods from the mod folder, and check for updates.
+
 pub struct VintageAPIHandler {
     client: Client,
     // http://mods.vintagestory.at

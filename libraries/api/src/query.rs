@@ -8,7 +8,7 @@
 /// orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
 /// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids[]=7&tagids[]=8&orderby=downloads
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OrderBy {
     asset_created,
     last_released,
@@ -18,7 +18,7 @@ pub enum OrderBy {
     trending_points,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OrderDirection {
     Desc,
     Asc,
