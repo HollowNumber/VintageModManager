@@ -46,7 +46,8 @@ impl Logger {
     // how do we make level optional?
 
     pub fn log(&self, level: LogLevel, message: &str) {
-        let current_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        // European time format
+        let current_time = Local::now().format("%Y-%d-%m %H:%M:%S").to_string();
 
         println!(
             "{} [{}] {}: {}",
