@@ -1,19 +1,15 @@
 use tokio;
 
-mod api;
-mod utils;
-
 use api::query::OrderBy;
 use api::query::Query;
-use api::{FileManager, ModAPIHandler};
+use api::{FileManager, VintageAPIHandler};
 use utils::{LogLevel, Logger};
 
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use std::path::Path;
+use tokio::io::AsyncWriteExt;
 
-use thiserror::Error;
 use api::ModDataHandler;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RequestOrIOError {
@@ -27,7 +23,7 @@ pub enum RequestOrIOError {
 
 #[tokio::main]
 async fn main() -> Result<(), RequestOrIOError> {
-    let api_client = ModAPIHandler::new();
+    let api_client = VintageAPIHandler::new();
     let logger = Logger::new("Main".to_string(), LogLevel::Info);
     let encoder = utils::Encoder::new();
     let mod_handler = ModDataHandler::new();
@@ -66,7 +62,6 @@ async fn main() -> Result<(), RequestOrIOError> {
                 .await?;
         }
     }
-
 
     //logger.log(LogLevel::Warn, &*data);
     //logger.log(LogLevel::Info, &*data_from_name);

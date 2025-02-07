@@ -1,0 +1,10 @@
+[package]
+name = "utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.1"
+chrono = "0.4.39"
+colored = "3.0.0"
+thiserror = "2.0.11"

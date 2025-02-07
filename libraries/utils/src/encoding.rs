@@ -1,8 +1,7 @@
 use base64::{Engine as _, engine::{self, general_purpose}, alphabet, DecodeError};
 use std::str;
-use crate::utils::{LogLevel, Logger};
 use thiserror::Error;
-
+use crate::{LogLevel, Logger};
 
 #[derive(Error, Debug)]
 pub enum EncodingError {

@@ -1,12 +1,12 @@
 ///
 ///tagids[]: Filter by tag id (AND)
-// gameversion or gv: Filter by game version id
-// gameversions[]: Filter by game version ids (OR)
-// author: Filter by author id
-// text: Search by mod text and title
-// orderby: Order by, one of: 'asset.created', 'lastreleased', 'downloads', 'follows', 'comments', 'trendingpoints' (default: asset.created)
-// orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
-// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids[]=7&tagids[]=8&orderby=downloads
+/// gameversion or gv: Filter by game version id
+/// gameversions[]: Filter by game version ids (OR)
+/// author: Filter by author id
+/// text: Search by mod text and title
+/// orderby: Order by, one of: 'asset.created', 'lastreleased', 'downloads', 'follows', 'comments', 'trendingpoints' (default: asset.created)
+/// orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
+/// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids[]=7&tagids[]=8&orderby=downloads
 
 #[derive(Debug)]
 pub enum OrderBy {

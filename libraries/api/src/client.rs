@@ -1,16 +1,16 @@
 
 use reqwest::Client;
-use crate::utils::{LogLevel, Logger};
+use utils::{LogLevel, Logger};
 
 
-pub struct ModAPIHandler {
+pub struct VintageAPIHandler {
     client: Client,
     // http://mods.vintagestory.at
     api_url: String,
     logger: Logger,
 }
 
-impl ModAPIHandler {
+impl VintageAPIHandler {
     pub fn new() -> Self {
         let client = Client::new();
         let logger = Logger::new("ModAPIHandler".to_string(), LogLevel::Info);
