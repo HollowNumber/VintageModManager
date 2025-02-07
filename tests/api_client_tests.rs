@@ -1,5 +1,5 @@
-use tokio;
 use api::VintageAPIHandler;
+use tokio;
 
 #[tokio::test]
 async fn test_get_mod_from_id() {

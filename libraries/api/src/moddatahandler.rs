@@ -1,7 +1,7 @@
 // src/api/moddatahandler.rs
 
-use utils::{LogLevel, Logger};
 use serde::Deserialize;
+use utils::{LogLevel, Logger};
 
 #[derive(Deserialize, Debug)]
 pub struct Release {
@@ -75,7 +75,7 @@ impl ModDataHandler {
     pub fn parse_mod_data(&self, json_data: &str) -> Result<ModData, serde_json::Error> {
         let mod_data: ModData = serde_json::from_str(json_data)?;
         //self.logger
-            //.log_default(&format!("Parsed mod data: {:?}", mod_data));
+        //.log_default(&format!("Parsed mod data: {:?}", mod_data));
         Ok(mod_data)
     }
 

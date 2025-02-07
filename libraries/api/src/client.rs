@@ -1,7 +1,5 @@
-
 use reqwest::Client;
 use utils::{LogLevel, Logger};
-
 
 pub struct VintageAPIHandler {
     client: Client,
@@ -14,7 +12,7 @@ impl VintageAPIHandler {
     pub fn new() -> Self {
         let client = Client::new();
         let logger = Logger::new("ModAPIHandler".to_string(), LogLevel::Info);
-        let url =  "http://mods.vintagestory.at".to_string();
+        let url = "http://mods.vintagestory.at".to_string();
         Self {
             client,
             api_url: url,
