@@ -6,16 +6,33 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use zip::ZipArchive;
 
+/// Struct to manage file operations with logging.
 pub struct FileManager {
+    /// Logger instance for logging file operations.
     logger: Logger,
 }
 
 impl FileManager {
+    /// Creates a new `FileManager` instance.
+    ///
+    /// # Returns
+    ///
+    /// A new `FileManager` instance with a default logger.
     pub fn new() -> Self {
         let logger = Logger::new("FileManager".to_string(), LogLevel::Info);
         Self { logger }
     }
 
+    /// Saves a file asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to save.
+    /// * `bytes` - The content to write to the file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub async fn save_file(&self, file_name: &str, bytes: Bytes) -> Result<(), std::io::Error> {
         self.logger
             .log_default(&format!("Saving file: {}", file_name));
@@ -24,6 +41,16 @@ impl FileManager {
         Ok(())
     }
 
+    /// Saves a file synchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to save.
+    /// * `bytes` - The content to write to the file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub fn save_file_sync(&self, file_name: &str, bytes: Bytes) -> Result<(), std::io::Error> {
         self.logger
             .log_default(&format!("Saving file: {}", file_name));
@@ -32,6 +59,15 @@ impl FileManager {
         Ok(())
     }
 
+    /// Reads a file asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to read.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the file content as `Bytes` or an error.
     pub async fn read_file(&self, file_name: &str) -> Result<Bytes, std::io::Error> {
         self.logger
             .log_default(&format!("Reading file: {}", file_name));
@@ -41,6 +77,15 @@ impl FileManager {
         Ok(Bytes::from(contents))
     }
 
+    /// Reads a file synchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to read.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the file content as `Bytes` or an error.
     pub fn read_file_sync(&self, file_name: &str) -> Result<Bytes, std::io::Error> {
         self.logger
             .log_default(&format!("Reading file: {}", file_name));
@@ -50,6 +95,15 @@ impl FileManager {
         Ok(Bytes::from(contents))
     }
 
+    /// Reads the `modinfo.json` file from a zip archive.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the zip file to read.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the content of `modinfo.json` as a `Vec<u8>` or an error.
     pub fn read_modinfo_from_zip(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
         self.logger
             .log_default(&format!("Reading zip file: {}", file_name));
@@ -62,6 +116,15 @@ impl FileManager {
         Ok(contents)
     }
 
+    /// Deletes a file asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to delete.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub async fn delete_file(&self, file_name: &str) -> Result<(), std::io::Error> {
         self.logger
             .log_default(&format!("Deleting file: {}", file_name));
@@ -69,6 +132,15 @@ impl FileManager {
         Ok(())
     }
 
+    /// Deletes a file synchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to delete.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub fn delete_file_sync(&self, file_name: &str) -> Result<(), std::io::Error> {
         self.logger
             .log_default(&format!("Deleting file: {}", file_name));
@@ -76,6 +148,15 @@ impl FileManager {
         Ok(())
     }
 
+    /// Checks if a file exists asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_name` - The name of the file to check.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `true` if the file exists, `false` if it does not, or an error.
     pub async fn file_exists(&self, file_name: &str) -> Result<bool, std::io::Error> {
         self.logger
             .log_default(&format!("Checking if file exists: {}", file_name));
