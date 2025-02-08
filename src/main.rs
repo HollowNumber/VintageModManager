@@ -2,16 +2,16 @@ use tokio;
 
 use api::query::OrderBy;
 use api::query::Query;
-use api::VintageAPIHandler;
-use utils::{Config, FileManager};
+use api::{ModInfo, VintageAPIHandler};
+use utils::{get_config_dir, FileManager};
 use utils::{LogLevel, Logger};
 
-use std::path::Path;
 use tokio::io::AsyncWriteExt;
 
-use api::ModDataHandler;
+use api::APIDataHandler;
 use thiserror::Error;
 
+// Will not be used in the final version
 #[derive(Error, Debug)]
 pub enum RequestOrIOError {
     #[error("Request error: {0}")]
@@ -22,6 +22,8 @@ pub enum RequestOrIOError {
     Serde(#[from] serde_json::Error),
     #[error("Bincode Error: {0}")]
     Bincode(#[from] Box<bincode::Error>),
+    #[error("Var Error: {0}")]
+    Var(#[from] std::env::VarError),
 }
 
 #[tokio::main]
@@ -29,7 +31,7 @@ async fn main() -> Result<(), RequestOrIOError> {
     let api_client = VintageAPIHandler::new();
     let logger = Logger::new("Main".to_string(), LogLevel::Info);
     let encoder = utils::Encoder::new();
-    let mod_handler = ModDataHandler::new();
+    let mod_handler = APIDataHandler::new();
 
     let mod_string = encoder.encode_mod_string(&[3213, 3214, 3217, 3215]);
     let decoded_mod_string = encoder.decode_mod_string(mod_string).unwrap();
@@ -37,10 +39,10 @@ async fn main() -> Result<(), RequestOrIOError> {
     let data = api_client.get_mod_from_id(3209).await?;
     let data_from_name = api_client.get_mod_from_name("CarryCapacity").await?;
 
-    let query = Query::new().with_order_by(OrderBy::last_released).build();
+    let query = Query::new().with_order_by(OrderBy::LastReleased).build();
 
     let search_results = api_client.search_mods(query).await?;
-/*
+    /*
     for modid in decoded_mod_string {
         let mod_data_json = api_client.get_mod_from_id(modid).await?;
         let mod_data = mod_handler.parse_mod_data(&mod_data_json)?;
@@ -66,11 +68,15 @@ async fn main() -> Result<(), RequestOrIOError> {
         }
     }*/
 
-    let mod_data = api_client.get_mod_from_id(3209).await?;
-    let mod_data = mod_handler.parse_mod_data(&mod_data)?;
-    //let config = Config::from_json(&mod_data)?;
-    // Save the mod data to a file
+    let filehandler = FileManager::new();
+    let zip_path = "mods/polylocustsv1.0.0.zip".to_string();
+    let zip_file = filehandler.read_modinfo_from_zip(&zip_path)?;
+    let zip_file = String::from_utf8(zip_file).unwrap().to_lowercase();
+    // Parse the modinfo.json file
+    let modinfo: ModInfo = serde_json::from_str(&zip_file)?;
+    logger.log_default(&format!("Zip file: {:?}", modinfo));
 
+    logger.log(LogLevel::Info, &get_config_dir());
 
     //logger.log(LogLevel::Warn, &*data);
     //logger.log(LogLevel::Info, &*data_from_name);

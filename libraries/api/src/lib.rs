@@ -1,7 +1,9 @@
+pub mod apidatahandler;
 pub mod client;
-pub mod moddatahandler;
+pub mod modinfo;
 pub mod query;
 
+pub use apidatahandler::*;
 pub use client::*;
-pub use moddatahandler::*;
+pub use modinfo::*;
 pub use query::*;

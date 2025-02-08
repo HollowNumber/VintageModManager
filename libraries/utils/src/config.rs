@@ -1,15 +1,12 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     settings: HashMap<String, String>,
 }
-
 
 impl Config {
     pub fn new() -> Self {

@@ -1,8 +1,10 @@
+use crate::{LogLevel, Logger};
 use bytes::Bytes;
+use std::io::Read;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
-use crate::{LogLevel, Logger};
+use zip::ZipArchive;
 
 pub struct FileManager {
     logger: Logger,
@@ -44,8 +46,20 @@ impl FileManager {
             .log_default(&format!("Reading file: {}", file_name));
         let mut file = std::fs::File::open(file_name)?;
         let mut contents = Vec::new();
-        std::io::Read::read_to_end(&mut file, &mut contents)?;
+        Read::read_to_end(&mut file, &mut contents)?;
         Ok(Bytes::from(contents))
+    }
+
+    pub fn read_modinfo_from_zip(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
+        self.logger
+            .log_default(&format!("Reading zip file: {}", file_name));
+        let mut file = std::fs::File::open(file_name)?;
+        let mut archive = ZipArchive::new(file)?;
+        // Look for the modinfo.json file
+        let mut modinfo = archive.by_name("modinfo.json")?;
+        let mut contents = Vec::new();
+        modinfo.read_to_end(&mut contents)?;
+        Ok(contents)
     }
 
     pub async fn delete_file(&self, file_name: &str) -> Result<(), std::io::Error> {

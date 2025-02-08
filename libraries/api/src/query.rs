@@ -4,18 +4,18 @@
 /// gameversions[]: Filter by game version ids (OR)
 /// author: Filter by author id
 /// text: Search by mod text and title
-/// orderby: Order by, one of: 'asset.created', 'lastreleased', 'downloads', 'follows', 'comments', 'trendingpoints' (default: asset.created)
+/// orderby: Order by, one of: 'asset.created', 'lastreleased', 'Downloads', 'Follows', 'Comments', 'trendingpoints' (default: asset.created)
 /// orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
-/// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids[]=7&tagids[]=8&orderby=downloads
+/// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids[]=7&tagids[]=8&orderby=Downloads
 
 #[derive(Debug, PartialEq)]
 pub enum OrderBy {
-    asset_created,
-    last_released,
-    downloads,
-    follows,
-    comments,
-    trending_points,
+    AssetCreated,
+    LastReleased,
+    Downloads,
+    Follows,
+    Comments,
+    TrendingPoints,
 }
 
 #[derive(Debug, PartialEq)]
@@ -59,6 +59,9 @@ impl Query {
         self
     }
 
+    /// The Game Versions of the mods (OR) filter
+    /// Example: gameversions[]=1&gameversions[]=2
+    /// This will return mods that are compatible with game version 1 OR 2
     pub fn with_game_versions(mut self, game_versions: Vec<u16>) -> Self {
         self.game_versions = game_versions;
         self
@@ -113,12 +116,12 @@ impl Query {
 
         if let Some(ref order_by) = self.order_by {
             let order_by_str = match order_by {
-                OrderBy::asset_created => "asset.created",
-                OrderBy::last_released => "lastreleased",
-                OrderBy::downloads => "downloads",
-                OrderBy::follows => "follows",
-                OrderBy::comments => "comments",
-                OrderBy::trending_points => "trendingpoints",
+                OrderBy::AssetCreated => "asset.created",
+                OrderBy::LastReleased => "lastreleased",
+                OrderBy::Downloads => "downloads",
+                OrderBy::Follows => "follows",
+                OrderBy::Comments => "comments",
+                OrderBy::TrendingPoints => "trendingpoints",
             };
             query_string.push_str(&format!("orderby={}&", order_by_str));
         }

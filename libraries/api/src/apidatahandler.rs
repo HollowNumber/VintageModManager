@@ -54,31 +54,31 @@ pub struct Mod {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ModData {
+pub struct APIData {
     pub statuscode: String,
     #[serde(rename = "mod")]
     pub mod_data: Mod,
 }
 
-pub struct ModDataHandler {
+pub struct APIDataHandler {
     logger: Logger,
 }
 
-impl ModDataHandler {
+impl APIDataHandler {
     pub fn new() -> Self {
         Self {
             logger: Logger::new("ModHandler".to_string(), LogLevel::Info),
         }
     }
 
-    pub fn parse_mod_data(&self, json_data: &str) -> Result<ModData, serde_json::Error> {
-        let mod_data: ModData = serde_json::from_str(json_data)?;
+    pub fn parse_mod_data(&self, json_data: &str) -> Result<APIData, serde_json::Error> {
+        let mod_data: APIData = serde_json::from_str(json_data)?;
         //self.logger
         //.log_default(&format!("Parsed mod data: {:?}", mod_data));
         Ok(mod_data)
     }
 
-    pub fn get_mainfile_path<'a>(&self, mod_data: &'a ModData) -> Option<&'a str> {
+    pub fn get_mainfile_path<'a>(&self, mod_data: &'a APIData) -> Option<&'a str> {
         mod_data
             .mod_data
             .releases

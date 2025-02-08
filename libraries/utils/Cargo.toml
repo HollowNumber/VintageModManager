@@ -12,5 +12,5 @@ tokio = "1.43.0"
 bytes = "1.10.0"
 serde_json = "1.0.138"
 serde = { version = "1.0.217", features = ["derive"] }
-
-
+zip = "2.2.2"
+directories = "6.0.0"
