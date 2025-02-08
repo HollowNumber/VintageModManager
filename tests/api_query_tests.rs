@@ -36,8 +36,8 @@ mod tests {
 
     #[test]
     fn test_query_with_order_by() {
-        let query = Query::new().with_order_by(OrderBy::downloads);
-        assert_eq!(query.order_by, Some(OrderBy::downloads));
+        let query = Query::new().with_order_by(OrderBy::Downloads);
+        assert_eq!(query.order_by, Some(OrderBy::Downloads));
     }
 
     #[test]
@@ -53,7 +53,7 @@ mod tests {
             .with_game_version(42)
             .with_author(7)
             .with_text("example".to_string())
-            .with_order_by(OrderBy::downloads)
+            .with_order_by(OrderBy::Downloads)
             .with_order_direction(OrderDirection::Desc);
 
         let query_string = query.build();
