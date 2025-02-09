@@ -1,6 +1,9 @@
 use chrono::Local;
-use colored::*;
+use std::cell::RefCell;
 use std::fmt;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::rc::Rc;
 
 /// Enum representing different log levels.
 #[derive(Clone)]
@@ -29,14 +32,7 @@ impl fmt::Display for LogLevel {
             LogLevel::Error => "ERROR",
         };
 
-        let colored_level = match self {
-            LogLevel::Debug => level_str.blue(),
-            LogLevel::Info => level_str.green(),
-            LogLevel::Warn => level_str.yellow(),
-            LogLevel::Error => level_str.red(),
-        };
-
-        write!(f, "{}", colored_level)
+        write!(f, "{}", level_str)
     }
 }
 
@@ -46,6 +42,8 @@ pub struct Logger {
     pub logger_name: String,
     /// The default log level for the logger.
     pub default_log_level: LogLevel,
+    /// The file handle for logging to a file.
+    file: Rc<RefCell<std::fs::File>>,
 }
 
 impl Logger {
@@ -55,14 +53,22 @@ impl Logger {
     ///
     /// * `logger_name` - A `String` representing the name of the logger.
     /// * `default_log_level` - The default `LogLevel` for the logger.
+    /// * `file_path` - The path to the log file.
     ///
     /// # Returns
     ///
     /// A new `Logger` instance.
-    pub fn new(logger_name: String, default_log_level: LogLevel) -> Logger {
+    pub fn new(logger_name: String, default_log_level: LogLevel, file_path: &str) -> Logger {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file_path)
+            .expect("Unable to open log file");
+
         Self {
             logger_name,
             default_log_level,
+            file: Rc::new(RefCell::new(file)),
         }
     }
 
@@ -73,13 +79,26 @@ impl Logger {
     /// * `level` - The `LogLevel` to log the message with.
     /// * `message` - A `&str` representing the message to log.
     pub fn log(&self, level: LogLevel, message: &str) {
-        // European time format
         let current_time = Local::now().format("%Y-%d-%m %H:%M:%S").to_string();
 
-        println!(
-            "{} [{}] {}: {}",
+        let log_message = format!(
+            "{} [{}] {}: {}\n",
             current_time, level, self.logger_name, message
         );
+
+        // Print to console
+        println!("{}", log_message);
+
+        // Write to file without color codes
+        let file_log_message = format!(
+            "{} [{}] {}: {}\n",
+            current_time, level, self.logger_name, message
+        );
+
+        self.file
+            .borrow_mut()
+            .write_all(file_log_message.as_bytes())
+            .expect("Unable to write to log file");
     }
 
     /// Logs a message with the default log level.

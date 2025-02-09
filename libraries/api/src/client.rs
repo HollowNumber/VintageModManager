@@ -1,7 +1,6 @@
+use crate::{APIData, ModInfo};
 use reqwest::Client;
 use utils::{LogLevel, Logger};
-
-// TODO: Test if i can load the mods from the mod folder, and check for updates.
 
 /// Struct to handle interactions with the Vintage Story API.
 pub struct VintageAPIHandler {
@@ -21,7 +20,11 @@ impl VintageAPIHandler {
     /// A new `VintageAPIHandler` instance with a default logger and API URL.
     pub fn new() -> Self {
         let client = Client::new();
-        let logger = Logger::new("ModAPIHandler".to_string(), LogLevel::Info);
+        let logger = Logger::new(
+            "VintageAPIHandler".to_string(),
+            LogLevel::Info,
+            "logs/APIHandler.log",
+        );
         let url = "http://mods.vintagestory.at".to_string();
         Self {
             client,
@@ -109,5 +112,32 @@ impl VintageAPIHandler {
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
         Ok(bytes)
+    }
+
+    /// Compares local Modinfo with the API Modinfo for updates.
+    ///
+    /// # Arguments
+    /// * `modinfo` - The Modinfo struct to compare.
+    ///
+    /// # Returns
+    /// A `bool` if the mod is up to date or not.
+    pub async fn check_for_update(&self, modinfo: ModInfo) -> Result<bool, reqwest::Error> {
+        let mod_id = modinfo.modid.expect("Modid not found");
+        self.logger
+            .log_default(&format!("Checking for updates for mod: {}", mod_id));
+        let api_mod = self.get_mod_from_name(&mod_id).await?;
+        let api_modinfo: APIData = serde_json::from_str(&api_mod).unwrap();
+        self.logger.log_default(&format!(
+            "Modinfo version: {:?} -- API version: {:?}",
+            modinfo.version, api_modinfo.mod_data.releases[0].modversion
+        ));
+
+        if modinfo.version.expect("Version not found")
+            == api_modinfo.mod_data.releases[0].modversion
+        {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }

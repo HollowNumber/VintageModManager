@@ -4,6 +4,8 @@ use std::io::Read;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio_stream::wrappers::ReadDirStream;
+use tokio_stream::StreamExt;
 use zip::ZipArchive;
 
 /// Struct to manage file operations with logging.
@@ -19,7 +21,11 @@ impl FileManager {
     ///
     /// A new `FileManager` instance with a default logger.
     pub fn new() -> Self {
-        let logger = Logger::new("FileManager".to_string(), LogLevel::Info);
+        let logger = Logger::new(
+            "FileManager".to_string(),
+            LogLevel::Info,
+            "logs/filemanager.log",
+        );
         Self { logger }
     }
 
@@ -170,5 +176,23 @@ impl FileManager {
                 }
             }
         }
+    }
+
+    pub async fn get_files_in_directory(
+        &self,
+        directory: &str,
+    ) -> Result<Vec<String>, std::io::Error> {
+        self.logger
+            .log_default(&format!("Getting files in directory: {}", directory));
+        let mut files = vec![];
+        let entries = fs::read_dir(directory).await?;
+        let mut entries = ReadDirStream::new(entries);
+        while let Some(entry) = entries.next().await {
+            let entry = entry?;
+            let path = entry.path();
+            let file_name = path.to_str().unwrap().to_string();
+            files.push(file_name);
+        }
+        Ok(files)
     }
 }
