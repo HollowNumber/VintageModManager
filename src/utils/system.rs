@@ -71,7 +71,7 @@ pub fn get_vintage_mods_dir() -> String {
         UNIX_PATH
     } else if cfg!(windows) {
         WINDOWS_PATH
-    } else if cfg!(macos) {
+    } else if cfg!(target_os = "macos") {
         UNIX_PATH
     } else {
         panic!("Unsupported operating system");
@@ -79,4 +79,34 @@ pub fn get_vintage_mods_dir() -> String {
 
     let vintage_mods_dir = format!("{}{}", config_dir, sys_folder);
     vintage_mods_dir
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_system_time() {
+        let time = get_system_time();
+        assert!(time > 0);
+    }
+
+    #[test]
+    fn test_get_system_info() {
+        let info = get_system_info();
+        assert!(!info.os.is_empty());
+        assert!(!info.arch.is_empty());
+    }
+
+    #[test]
+    fn test_get_config_dir() {
+        let config_dir = get_config_dir();
+        assert!(!config_dir.is_empty());
+    }
+
+    #[test]
+    fn test_get_vintage_mods_dir() {
+        let mods_dir = get_vintage_mods_dir();
+        assert!(!mods_dir.is_empty());
+    }
 }

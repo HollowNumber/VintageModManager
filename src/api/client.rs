@@ -1,6 +1,6 @@
+use crate::utils::{LogLevel, Logger};
 use crate::{APIData, ModInfo};
 use reqwest::Client;
-use utils::{LogLevel, Logger};
 
 const VINTAGE_STORY_URL: &str = "http://mods.vintagestory.at";
 
@@ -150,5 +150,48 @@ impl VintageAPIHandler {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::query::Query;
+
+    #[tokio::test]
+    async fn test_get_mod_from_id() {
+        let api = VintageAPIHandler::new(false);
+        let mod_data = api.get_mod_from_id(3351).await.unwrap();
+        assert!(mod_data.contains("Crude Arrows"));
+    }
+
+    #[tokio::test]
+    async fn test_get_mod_from_name() {
+        let api = VintageAPIHandler::new(false);
+        let mod_data = api.get_mod_from_name("crudetoflintarrow").await.unwrap();
+        assert!(mod_data.contains("Crude Arrows"));
+    }
+
+    #[tokio::test]
+    async fn test_get_mods() {
+        let api = VintageAPIHandler::new(false);
+        let mods = api.get_mods().await.unwrap();
+        assert!(mods.contains("mods"));
+    }
+
+    #[tokio::test]
+    async fn test_search_mods() {
+        let api = VintageAPIHandler::new(false);
+        let query = Query::new().with_text("jack").build();
+
+        let mods = api.search_mods(query).await.unwrap();
+        assert!(mods.contains("jack"));
+    }
+
+    #[tokio::test]
+    async fn test_get_filestream() {
+        let api = VintageAPIHandler::new(false);
+        let file = api.get_filestream("api/mod/1".to_string()).await.unwrap();
+        assert!(file.len() > 0);
     }
 }

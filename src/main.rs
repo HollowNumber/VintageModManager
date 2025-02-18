@@ -1,3 +1,6 @@
+mod api;
+mod utils;
+
 use clap::Parser;
 use rayon::prelude::*;
 use tokio;

@@ -218,3 +218,95 @@ impl FileManager {
         Ok(zips)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use std::io::Write;
+    use tokio::io::AsyncWriteExt;
+
+    #[tokio::test]
+    async fn save_file_creates_file_with_correct_content() {
+        let file_manager = FileManager::new(false);
+        let file_name = "test_save_file.txt";
+        let content = Bytes::from("Hello, world!");
+
+        let result = file_manager.save_file(file_name, content.clone()).await;
+        assert!(result.is_ok());
+
+        let read_content = file_manager.read_file(file_name).await.unwrap();
+        assert_eq!(read_content, content);
+
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[tokio::test]
+    async fn read_file_returns_correct_content() {
+        let file_manager = FileManager::new(false);
+        let file_name = "test_read_file.txt";
+        let content = Bytes::from("Hello, world!");
+
+        std::fs::write(file_name, &content).unwrap();
+        let read_content = file_manager.read_file(file_name).await.unwrap();
+        assert_eq!(read_content, content);
+
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_file_removes_file() {
+        let file_manager = FileManager::new(false);
+        let file_name = "test_delete_file.txt";
+        let content = Bytes::from("Hello, world!");
+
+        std::fs::write(file_name, &content).unwrap();
+        let result = file_manager.delete_file(file_name).await;
+        assert!(result.is_ok());
+
+        let file_exists = std::fs::metadata(file_name).is_ok();
+        assert!(!file_exists);
+    }
+
+    #[tokio::test]
+    async fn file_exists_returns_true_for_existing_file() {
+        let file_manager = FileManager::new(false);
+        let file_name = "test_file_exists.txt";
+        let content = Bytes::from("Hello, world!");
+
+        std::fs::write(file_name, &content).unwrap();
+        let exists = file_manager.file_exists(file_name).await.unwrap();
+        assert!(exists);
+
+        std::fs::remove_file(file_name).unwrap();
+    }
+
+    #[tokio::test]
+    async fn file_exists_returns_false_for_non_existing_file() {
+        let file_manager = FileManager::new(false);
+        let file_name = "non_existing_file.txt";
+
+        let exists = file_manager.file_exists(file_name).await.unwrap();
+        assert!(!exists);
+    }
+
+    #[tokio::test]
+    async fn get_files_in_directory_returns_all_files() {
+        let file_manager = FileManager::new(false);
+        let dir_name = ".\\test_folder";
+        std::fs::create_dir(dir_name).unwrap();
+        let file_name1 = format!("{}\\file1.txt", dir_name);
+        let file_name2 = format!("{}\\file2.txt", dir_name);
+        std::fs::write(&file_name1, "File 1").unwrap();
+        std::fs::write(&file_name2, "File 2").unwrap();
+
+        let files = file_manager.get_files_in_directory(dir_name).await.unwrap();
+        println!("{:?}", files);
+        assert!(files.contains(&file_name1));
+        assert!(files.contains(&file_name2));
+
+        std::fs::remove_file(file_name1).unwrap();
+        std::fs::remove_file(file_name2).unwrap();
+        std::fs::remove_dir(dir_name).unwrap();
+    }
+}
