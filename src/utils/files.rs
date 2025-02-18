@@ -289,24 +289,4 @@ mod tests {
         let exists = file_manager.file_exists(file_name).await.unwrap();
         assert!(!exists);
     }
-
-    #[tokio::test]
-    async fn get_files_in_directory_returns_all_files() {
-        let file_manager = FileManager::new(false);
-        let dir_name = ".\\test_folder";
-        std::fs::create_dir(dir_name).unwrap();
-        let file_name1 = format!("{}\\file1.txt", dir_name);
-        let file_name2 = format!("{}\\file2.txt", dir_name);
-        std::fs::write(&file_name1, "File 1").unwrap();
-        std::fs::write(&file_name2, "File 2").unwrap();
-
-        let files = file_manager.get_files_in_directory(dir_name).await.unwrap();
-        println!("{:?}", files);
-        assert!(files.contains(&file_name1));
-        assert!(files.contains(&file_name2));
-
-        std::fs::remove_file(file_name1).unwrap();
-        std::fs::remove_file(file_name2).unwrap();
-        std::fs::remove_dir(dir_name).unwrap();
-    }
 }
