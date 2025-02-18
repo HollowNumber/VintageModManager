@@ -1,14 +1,16 @@
+use clap::Parser;
+use rayon::prelude::*;
 use tokio;
 
-use api::query::OrderBy;
-use api::query::Query;
-use api::{ModInfo, VintageAPIHandler};
-use utils::{get_config_dir, FileManager};
-use utils::{LogLevel, Logger};
+use api::{APIData, ModInfo, VintageAPIHandler};
+use utils::{
+    get_vintage_mods_dir, Commands, Encoder, EncoderData, FileManager, LogLevel, Logger, CLI,
+};
+
+use spinners::{Spinner, Spinners};
 
 use tokio::io::AsyncWriteExt;
 
-use api::APIDataHandler;
 use thiserror::Error;
 
 // Will not be used in the final version
@@ -28,59 +30,79 @@ pub enum RequestOrIOError {
 
 #[tokio::main]
 async fn main() -> Result<(), RequestOrIOError> {
-    let api_client = VintageAPIHandler::new();
-    let logger = Logger::new("Main".to_string(), LogLevel::Info);
-    let encoder = utils::Encoder::new();
-    let mod_handler = APIDataHandler::new();
+    let cli = CLI::parse();
 
-    let mod_string = encoder.encode_mod_string(&[3213, 3214, 3217, 3215]);
-    let decoded_mod_string = encoder.decode_mod_string(mod_string).unwrap();
+    let verbose = cli.verbose.unwrap_or(false);
 
-    let data = api_client.get_mod_from_id(3209).await?;
-    let data_from_name = api_client.get_mod_from_name("CarryCapacity").await?;
+    let api = VintageAPIHandler::new(verbose);
+    let file_manager = FileManager::new(verbose);
+    let encoder = Encoder::new(verbose);
+    let logger = Logger::new("Main".to_string(), LogLevel::Info, None, verbose);
 
-    let query = Query::new().with_order_by(OrderBy::LastReleased).build();
+    match cli.command {
+        Some(Commands::Import {
+            mod_string,
+            multi_thread,
+        }) => {
+            // ensure the mod_string exists
+            let mod_string = mod_string.expect("No mod string provided");
+            logger.log_default(&format!("Importing mods from mod string: {}", mod_string));
 
-    let search_results = api_client.search_mods(query).await?;
-    /*
-    for modid in decoded_mod_string {
-        let mod_data_json = api_client.get_mod_from_id(modid).await?;
-        let mod_data = mod_handler.parse_mod_data(&mod_data_json)?;
+            let mut spinner = Spinner::new(Spinners::Dots9, "Decoding mods...".into());
+            let decoded = encoder
+                .decode_mod_string(mod_string)
+                .expect("Failed to decode mod string");
+            spinner.stop();
+            println!();
 
-        if let Some(mainfile_path) = mod_handler.get_mainfile_path(&mod_data) {
-            logger.log_default(&format!("Main file path: {}", mainfile_path));
-            // Extract the file name from the path
-            let file_name = Path::new(mainfile_path)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("default.zip");
-            logger.log_default(&format!("File name: {}", file_name));
-            // Log the full path to be used
-            let full_path = format!("mods/{}", file_name);
-            logger.log_default(&format!("Full path: {}", full_path));
-            // Download to directory called mods
-            let file_stream = api_client
-                .get_filestream(mainfile_path.parse().unwrap())
-                .await?;
-            FileManager::new()
-                .save_file(&full_path, file_stream)
-                .await?;
+            println!("Downloading mods:");
+            let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
+
+            for mod_data in decoded {
+                let modinfo = api.get_mod_from_name(&mod_data.mod_id).await?;
+                let modinfo: APIData = serde_json::from_str(&modinfo)?;
+                let modinfo = modinfo.mod_data;
+
+                // TODO: Currently i only download the newest release, this should be changed to download the same release denominated in the mod string
+                let mod_path =
+                    format!("{}{}", get_vintage_mods_dir(), modinfo.releases[0].filename);
+
+                let mod_bytes = api
+                    .get_filestream_from_url(modinfo.releases[0].mainfile.clone())
+                    .await?;
+
+                file_manager.save_file(&mod_path, mod_bytes).await?;
+                progress_bar.inc(1);
+            }
+
+            progress_bar.finish();
         }
-    }*/
 
-    let filehandler = FileManager::new();
-    let zip_path = "mods/polylocustsv1.0.0.zip".to_string();
-    let zip_file = filehandler.read_modinfo_from_zip(&zip_path)?;
-    let zip_file = String::from_utf8(zip_file).unwrap().to_lowercase();
-    // Parse the modinfo.json file
-    let modinfo: ModInfo = serde_json::from_str(&zip_file)?;
-    logger.log_default(&format!("Zip file: {:?}", modinfo));
+        Some(Commands::Export { export }) => {
+            let mods = file_manager
+                .get_modinfo_from_mods_folder()
+                .await?
+                .into_iter()
+                .map(|mod_slice| {
+                    let mod_string = std::str::from_utf8(&mod_slice).unwrap().to_lowercase();
+                    let modinfo: ModInfo = serde_json::from_str(&mod_string).unwrap();
+                    EncoderData {
+                        mod_id: modinfo.modid.unwrap(),
+                        mod_version: modinfo.version.unwrap(),
+                    }
+                })
+                .collect::<Vec<EncoderData>>();
 
-    logger.log(LogLevel::Info, &get_config_dir());
+            let encoded = encoder.encode_mod_string(&mods);
+            println!("{}", encoded);
+        }
 
-    //logger.log(LogLevel::Warn, &*data);
-    //logger.log(LogLevel::Info, &*data_from_name);
-    //logger.log(LogLevel::Info, &*search_results);
+        Some(Commands::Update { check, update }) => {
+            println!("Checking for updates");
+        }
+
+        _ => {}
+    }
 
     Ok(())
 }

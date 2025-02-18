@@ -1,4 +1,4 @@
-use crate::{LogLevel, Logger};
+use crate::{get_vintage_mods_dir, LogLevel, Logger};
 use bytes::Bytes;
 use std::io::Read;
 use tokio::fs;
@@ -20,12 +20,8 @@ impl FileManager {
     /// # Returns
     ///
     /// A new `FileManager` instance with a default logger.
-    pub fn new() -> Self {
-        let logger = Logger::new(
-            "FileManager".to_string(),
-            LogLevel::Info,
-            "logs/filemanager.log",
-        );
+    pub fn new(verbose: bool) -> Self {
+        let logger = Logger::new("FileManager".to_string(), LogLevel::Info, None, verbose);
         Self { logger }
     }
 
@@ -113,7 +109,7 @@ impl FileManager {
     pub fn read_modinfo_from_zip(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
         self.logger
             .log_default(&format!("Reading zip file: {}", file_name));
-        let mut file = std::fs::File::open(file_name)?;
+        let file = std::fs::File::open(file_name)?;
         let mut archive = ZipArchive::new(file)?;
         // Look for the modinfo.json file
         let mut modinfo = archive.by_name("modinfo.json")?;
@@ -178,6 +174,13 @@ impl FileManager {
         }
     }
 
+    /// Checks if a file exists synchronously.
+    ///
+    /// # Arguments
+    /// * `directory` - a string slice representing the directory to search.
+    ///
+    /// # Returns
+    ///  A `Result` containing a vector of strings or an error.
     pub async fn get_files_in_directory(
         &self,
         directory: &str,
@@ -194,5 +197,24 @@ impl FileManager {
             files.push(file_name);
         }
         Ok(files)
+    }
+
+    pub async fn read_modinfo_from_zips(
+        &self,
+        paths: Vec<String>,
+    ) -> Result<Vec<Vec<u8>>, std::io::Error> {
+        let mut zips = vec![];
+        for path in paths {
+            let zip = self.read_modinfo_from_zip(&path)?;
+            zips.push(zip);
+        }
+        Ok(zips)
+    }
+
+    pub async fn get_modinfo_from_mods_folder(&self) -> Result<Vec<Vec<u8>>, std::io::Error> {
+        let folder = get_vintage_mods_dir();
+        let files = self.get_files_in_directory(&folder).await?;
+        let zips = self.read_modinfo_from_zips(files).await?;
+        Ok(zips)
     }
 }

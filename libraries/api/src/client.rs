@@ -2,6 +2,8 @@ use crate::{APIData, ModInfo};
 use reqwest::Client;
 use utils::{LogLevel, Logger};
 
+const VINTAGE_STORY_URL: &str = "http://mods.vintagestory.at";
+
 /// Struct to handle interactions with the Vintage Story API.
 pub struct VintageAPIHandler {
     /// HTTP client for making requests.
@@ -18,17 +20,17 @@ impl VintageAPIHandler {
     /// # Returns
     ///
     /// A new `VintageAPIHandler` instance with a default logger and API URL.
-    pub fn new() -> Self {
+    pub fn new(verbose: bool) -> Self {
         let client = Client::new();
         let logger = Logger::new(
             "VintageAPIHandler".to_string(),
             LogLevel::Info,
-            "logs/APIHandler.log",
+            None,
+            verbose,
         );
-        let url = "http://mods.vintagestory.at".to_string();
         Self {
             client,
-            api_url: url,
+            api_url: VINTAGE_STORY_URL.to_string(),
             logger,
         }
     }
@@ -109,6 +111,15 @@ impl VintageAPIHandler {
     /// A `Result` containing the file data as `bytes::Bytes` or an error.
     pub async fn get_filestream(&self, file_path: String) -> Result<bytes::Bytes, reqwest::Error> {
         let url = format!("{}/{}", &self.api_url, file_path);
+        let resp = self.client.get(&url).send().await?;
+        let bytes = resp.bytes().await?;
+        Ok(bytes)
+    }
+
+    pub async fn get_filestream_from_url(
+        &self,
+        url: String,
+    ) -> Result<bytes::Bytes, reqwest::Error> {
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
         Ok(bytes)

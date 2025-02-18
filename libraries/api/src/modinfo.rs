@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
-/// Struct representing the information of a mod.
+/// Struct representing the information of a mod. that's given in the modinfo.json file.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ModInfo {

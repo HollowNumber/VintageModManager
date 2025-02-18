@@ -1,6 +1,6 @@
 [package]
 name = "utils"
-version = "0.1.0"
+version = "0.3.2"
 edition = "2021"
 
 [dependencies]
@@ -15,3 +15,5 @@ zip = "2.2.2"
 directories = "6.0.0"
 tokio-stream = { version = "0.1.17", features = ["fs"] }
 clap = { version = "4.5.28", features = ["derive"] }
+brotli = "7.0.0"
+base85 = "2.0.0"

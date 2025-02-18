@@ -40,10 +40,12 @@ impl fmt::Display for LogLevel {
 pub struct Logger {
     /// The name of the logger.
     pub logger_name: String,
+    /// A flag to enable verbose logging.
+    pub verbose: bool,
     /// The default log level for the logger.
     pub default_log_level: LogLevel,
-    /// The file handle for logging to a file.
-    file: Rc<RefCell<std::fs::File>>,
+    /// The optional file handle for logging to a file.
+    file: Option<Rc<RefCell<std::fs::File>>>,
 }
 
 impl Logger {
@@ -53,22 +55,32 @@ impl Logger {
     ///
     /// * `logger_name` - A `String` representing the name of the logger.
     /// * `default_log_level` - The default `LogLevel` for the logger.
-    /// * `file_path` - The path to the log file.
+    /// * `file_path` - An optional path to the log file.
     ///
     /// # Returns
     ///
     /// A new `Logger` instance.
-    pub fn new(logger_name: String, default_log_level: LogLevel, file_path: &str) -> Logger {
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(file_path)
-            .expect("Unable to open log file");
+    pub fn new(
+        logger_name: String,
+        default_log_level: LogLevel,
+        file_path: Option<&str>,
+        verbose: bool,
+    ) -> Logger {
+        let file = file_path.map(|path| {
+            Rc::new(RefCell::new(
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .expect("Unable to open log file"),
+            ))
+        });
 
         Self {
             logger_name,
             default_log_level,
-            file: Rc::new(RefCell::new(file)),
+            file,
+            verbose,
         }
     }
 
@@ -79,6 +91,10 @@ impl Logger {
     /// * `level` - The `LogLevel` to log the message with.
     /// * `message` - A `&str` representing the message to log.
     pub fn log(&self, level: LogLevel, message: &str) {
+        if !self.verbose {
+            return;
+        }
+
         let current_time = Local::now().format("%Y-%d-%m %H:%M:%S").to_string();
 
         let log_message = format!(
@@ -89,16 +105,17 @@ impl Logger {
         // Print to console
         println!("{}", log_message);
 
-        // Write to file without color codes
-        let file_log_message = format!(
-            "{} [{}] {}: {}\n",
-            current_time, level, self.logger_name, message
-        );
+        // Write to file if file logging is enabled
+        if let Some(file) = &self.file {
+            let file_log_message = format!(
+                "{} [{}] {}: {}\n",
+                current_time, level, self.logger_name, message
+            );
 
-        self.file
-            .borrow_mut()
-            .write_all(file_log_message.as_bytes())
-            .expect("Unable to write to log file");
+            file.borrow_mut()
+                .write_all(file_log_message.as_bytes())
+                .expect("Unable to write to log file");
+        }
     }
 
     /// Logs a message with the default log level.

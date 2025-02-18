@@ -1,12 +1,18 @@
+/// * tagids\[\]: Filter by tag id (AND)
 ///
-/// tagids\[\]: Filter by tag id (AND)
-/// gameversion or gv: Filter by game version id
-/// gameversions\[\]: Filter by game version ids (OR)
-/// author: Filter by author id
-/// text: Search by mod text and title
-/// orderby: Order by, one of: 'asset.created', 'lastreleased', 'Downloads', 'Follows', 'Comments', 'trendingpoints' (default: asset.created)
-/// orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
-/// Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids\[\]=7&tagids\[\]=8&orderby=Downloads
+/// * gameversion or gv: Filter by game version id
+///
+/// * gameversions\[\]: Filter by game version ids (OR)
+///
+/// * author: Filter by author id
+///
+/// * text: Search by mod text and title
+///
+/// * orderby: Order by, one of: 'asset.created', 'lastreleased', 'Downloads', 'Follows', 'Comments', 'trendingpoints' (default: asset.created)
+///
+/// * orderdirection: Order direction, one of: 'desc', 'asc' (default: desc)
+///
+/// * Example: Search Example: http://mods.vintagestory.at/api/mods?text=jack&tagids\[\]=7&tagids\[\]=8&orderby=Downloads
 
 #[derive(Debug, PartialEq)]
 pub enum OrderBy {
@@ -65,6 +71,13 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new().with_tag_ids(vec![1, 2, 3]).build();
+    ///
+    /// assert_eq!(query, "tagids[]=1&tagids[]=2&tagids[]=3");
+    /// ```
     pub fn with_tag_ids(mut self, tag_ids: Vec<u16>) -> Self {
         self.tag_ids = tag_ids;
         self
@@ -79,6 +92,14 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new().with_game_version(42).build();
+    ///
+    /// assert_eq!(query, "gameversion=42");
+    /// ```
+    ///
     pub fn with_game_version(mut self, game_version: u16) -> Self {
         self.game_version = Some(game_version);
         self
@@ -97,7 +118,11 @@ impl Query {
     /// # Example
     ///
     /// ```
-    /// "gameversions[]=1&gameversions[]=2"
+    /// let query = api::Query::new()
+    ///     .with_game_versions(vec![1, 2])
+    ///     .build();
+    ///
+    /// assert_eq!(query, "gameversions[]=1&gameversions[]=2");
     /// ```
     /// This will return mods that are compatible with game version 1 OR 2.
     pub fn with_game_versions(mut self, game_versions: Vec<u16>) -> Self {
@@ -114,6 +139,15 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new()
+    ///     .with_author(7)
+    ///     .build();
+    ///
+    /// assert_eq!(query, "author=7");
+    /// ```
     pub fn with_author(mut self, author: u16) -> Self {
         self.author = Some(author);
         self
@@ -128,8 +162,19 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
-    pub fn with_text(mut self, text: String) -> Self {
-        self.text = Some(text);
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let query = api::Query::new()
+    ///     .with_text("example")
+    ///     .build();
+    ///
+    /// assert_eq!(query, "text=example");
+    /// ```
+    ///
+    pub fn with_text(mut self, text: &str) -> Self {
+        self.text = Some(text.into());
         self
     }
 
@@ -142,6 +187,15 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new()
+    ///     .with_order_by(api::OrderBy::Downloads)
+    ///     .build();
+    ///
+    /// assert_eq!(query, "orderby=Downloads");
+    /// ```
     pub fn with_order_by(mut self, order_by: OrderBy) -> Self {
         self.order_by = Some(order_by);
         self
@@ -156,6 +210,15 @@ impl Query {
     /// # Returns
     ///
     /// The updated `Query` instance.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new()
+    ///     .with_order_direction(api::OrderDirection::Asc)
+    ///     .build();
+    ///
+    /// assert_eq!(query, "orderdirection=asc");
+    /// ```
     pub fn with_order_direction(mut self, order_direction: OrderDirection) -> Self {
         self.order_direction = Some(order_direction);
         self
@@ -166,6 +229,20 @@ impl Query {
     /// # Returns
     ///
     /// A `String` representing the query string.
+    ///
+    /// # Example
+    /// ```
+    /// let query = api::Query::new()
+    ///     .with_tag_ids(vec![1, 2])
+    ///     .with_game_version(42)
+    ///     .with_author(7)
+    ///     .with_text("example")
+    ///     .with_order_by(api::OrderBy::Downloads)
+    ///     .with_order_direction(api::OrderDirection::Desc)
+    ///     .build();
+    ///
+    /// assert_eq!(query, "tagids[]=1&tagids[]=2&gameversion=42&author=7&text=example&orderby=downloads&orderdirection=desc");
+    /// ```
     pub fn build(&self) -> String {
         let mut query_string = String::new();
 

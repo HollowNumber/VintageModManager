@@ -2,6 +2,9 @@ use directories::BaseDirs;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const WINDOWS_PATH: &str = "\\VintagestoryData\\Mods\\";
+const UNIX_PATH: &str = "/VintagestoryData/Mods/";
+
 /// Struct to hold basic system information.
 #[derive(Debug)]
 pub struct SystemInfo {
@@ -28,6 +31,7 @@ pub fn get_system_time() -> u64 {
 /// # Returns
 ///
 /// A `SystemInfo` struct containing the operating system name and system architecture.
+#[deprecated(note = "Use cfg! macro instead")]
 pub fn get_system_info() -> SystemInfo {
     let os = env::consts::OS.to_string();
     let arch = env::consts::ARCH.to_string();
@@ -58,4 +62,21 @@ pub fn get_config_dir() -> String {
         .to_str()
         .expect("Could not convert config dir to string");
     config_dir.to_string()
+}
+
+pub fn get_vintage_mods_dir() -> String {
+    let config_dir = get_config_dir();
+
+    let sys_folder = if cfg!(unix) {
+        UNIX_PATH
+    } else if cfg!(windows) {
+        WINDOWS_PATH
+    } else if cfg!(macos) {
+        UNIX_PATH
+    } else {
+        panic!("Unsupported operating system");
+    };
+
+    let vintage_mods_dir = format!("{}{}", config_dir, sys_folder);
+    vintage_mods_dir
 }
