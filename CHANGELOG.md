@@ -1,9 +1,5 @@
-# VintageModManager v0.1.0
+# Changelog
 
-A simple command line tool to download mods from the Vintage Story moddb api.
+## [v0.1.2] - 2025-02-19
 
-## Features
-
-- **Mod updating:** Update mods from the Vintage Story moddb api.
-- **Mod downloading:** Download mods from the Vintage Story moddb api.
-
+- Attempting to fix the build process
