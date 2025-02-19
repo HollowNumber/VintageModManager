@@ -235,6 +235,7 @@ impl FileManager {
             .into_iter()
             .map(|(mod_slice, path)| {
                 let mod_string = std::str::from_utf8(&mod_slice).unwrap().to_lowercase();
+                let mod_string = remove_trailing_comma(&mod_string);
                 let mod_info: ModInfo = serde_json::from_str(&mod_string).unwrap();
 
                 (mod_info, path)
@@ -257,6 +258,42 @@ impl FileManager {
             .collect::<Vec<(ModInfo, PathBuf)>>();
         Ok(mods)
     }
+}
+
+fn remove_trailing_comma(json: &str) -> String {
+    let mut result = String::new();
+    let mut in_string = false;
+    let mut in_escape = false;
+
+    for (i, c) in json.chars().enumerate() {
+        if in_escape {
+            in_escape = false;
+        } else if c == '\\' {
+            in_escape = true;
+        } else if c == '"' {
+            in_string = !in_string;
+        }
+
+        if !in_string && c == ',' {
+            if let Some(next_char) = json.chars().nth(i + 1) {
+                if next_char.is_whitespace() {
+                    if let Some(non_whitespace_char) =
+                        json.chars().skip(i + 1).find(|&ch| !ch.is_whitespace())
+                    {
+                        if !"{[\"'\\w".contains(non_whitespace_char) {
+                            continue;
+                        }
+                    }
+                } else if !"{[\"'\\w".contains(next_char) {
+                    continue;
+                }
+            }
+        }
+
+        result.push(c);
+    }
+
+    result
 }
 
 #[cfg(test)]

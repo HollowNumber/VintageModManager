@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.5] - 2025-02-19
+
+- Potentially fixed the trailing comma issue when deserializing mod infos from the mod folder
+
 ## [v0.1.4] - 2025-02-19
 
 - Renamed `ModOptions` struct to `CliOptions`
