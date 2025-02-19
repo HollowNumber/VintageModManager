@@ -151,7 +151,10 @@ impl VintageAPIHandler {
         ));
 
         let is_update_available = mod_info.version.clone().expect("Version not found")
-            != api_mod_info.mod_data.releases[0].modversion;
+            != api_mod_info.mod_data.releases[0]
+                .modversion
+                .clone()
+                .unwrap();
 
         Ok((
             is_update_available,

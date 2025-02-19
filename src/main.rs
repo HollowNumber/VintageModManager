@@ -130,17 +130,21 @@ async fn update_mods(
                 "Update available for mod: {} - Current version: {} - New version: {}",
                 _mod.name.clone().unwrap(),
                 _mod.version.clone().unwrap(),
-                latest_release.modversion
+                latest_release.modversion.unwrap()
             );
 
             // Delete old mod
             println!("Deleting old mod: {}", path.display());
             file_manager.delete_file(&path).await?;
 
-            let new_mod_path = format!("{}{}", vintage_mods_dir, latest_release.filename);
+            let new_mod_path = format!(
+                "{}{}",
+                vintage_mods_dir,
+                latest_release.filename.clone().unwrap()
+            );
 
             let mod_bytes = api
-                .fetch_file_stream_from_url(latest_release.mainfile.clone())
+                .fetch_file_stream_from_url(latest_release.mainfile.clone().unwrap())
                 .await?;
 
             file_manager.save_file(&new_mod_path, mod_bytes).await?;
@@ -177,20 +181,22 @@ async fn import_mods(
     let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
 
     for mod_data in decoded {
+        logger.log_default(&format!("Downloading mod: {}", mod_data.mod_id));
         let modinfo = api.get_mod_from_name(&mod_data.mod_id).await?;
+        logger.log_default(&format!("Modinfo: {}", modinfo));
         let modinfo: ModApiResponse = serde_json::from_str(&modinfo)?;
         let modinfo = modinfo.mod_data;
 
         let release = modinfo
             .releases
             .iter()
-            .find(|release| release.modversion == mod_data.mod_version)
+            .find(|release| release.modversion.clone().unwrap() == mod_data.mod_version)
             .expect("Mod release not found");
 
-        let mod_path = format!("{}{}", vintage_mods_dir, release.filename);
+        let mod_path = format!("{}{}", vintage_mods_dir, release.filename.clone().unwrap());
 
         let mod_bytes = api
-            .fetch_file_stream_from_url(release.mainfile.clone())
+            .fetch_file_stream_from_url(release.mainfile.clone().unwrap())
             .await?;
 
         file_manager.save_file(&mod_path, mod_bytes).await?;

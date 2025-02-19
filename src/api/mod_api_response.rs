@@ -1,27 +1,48 @@
-use serde::Deserialize;
+use serde::de::Visitor;
 use serde::Serialize;
+use serde::{de, Deserialize, Deserializer};
+use std::fmt;
+use std::hash::Hasher;
 
 /// Struct representing a release of a mod.
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct Release {
     /// The ID of the release.
-    pub releaseid: u32,
+    pub releaseid: Option<u32>,
     /// The main file of the release.
-    pub mainfile: String,
+    pub mainfile: Option<String>,
     /// The filename of the release.
-    pub filename: String,
+    #[serde(deserialize_with = "deserialize_filename")]
+    pub filename: Option<String>,
     /// The file ID of the release.
-    pub fileid: u32,
+    pub fileid: Option<u32>,
     /// The number of downloads of the release.
-    pub downloads: u32,
+    pub downloads: Option<u32>,
     /// The tags associated with the release.
     pub tags: Vec<String>,
     /// The mod ID string.
-    pub modidstr: String,
+    pub modidstr: Option<String>,
     /// The version of the mod.
-    pub modversion: String,
+    pub modversion: Option<String>,
     /// The creation date of the release.
-    pub created: String,
+    pub created: Option<String>,
+}
+
+impl Default for Release {
+    fn default() -> Self {
+        Self {
+            releaseid: Some(0),
+            mainfile: Option::from("".to_string()),
+            filename: None,
+            fileid: Some(0),
+            downloads: Some(0),
+            tags: vec![],
+            modidstr: Some("".to_string()),
+            modversion: None,
+            created: Some("".to_string()),
+        }
+    }
 }
 
 /// Struct representing a screenshot of a mod.
@@ -101,4 +122,55 @@ pub struct ModApiResponse {
     /// The mod data.
     #[serde(rename = "mod")]
     pub mod_data: Mod,
+}
+
+fn deserialize_filename<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct FilenameVisitor;
+
+    impl<'de> Visitor<'de> for FilenameVisitor {
+        type Value = Option<String>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or an integer")
+        }
+
+        fn visit_u64<E>(self, _value: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(String::new()))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(value.to_string()))
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(value))
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(String::new()))
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(FilenameVisitor)
+        }
+    }
+    deserializer.deserialize_option(FilenameVisitor)
 }

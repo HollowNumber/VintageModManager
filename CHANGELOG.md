@@ -1,6 +1,10 @@
 # Changelog
 
-## v[0.4.0] - 2025-02-19
+## [v0.4.1] - 2025-02-19
+
+- Fixed api data deserialization issue
+
+## [v0.4.0] - 2025-02-19
 
 - Version bump to 0.4.0
 
