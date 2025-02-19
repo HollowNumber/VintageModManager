@@ -296,7 +296,7 @@ mod tests {
     #[tokio::test]
     async fn delete_file_removes_file() {
         let file_manager = FileManager::new(false);
-        let file_name = "test_delete_file.txt";
+        let file_name = &PathBuf::from("test_delete_file.txt");
         let content = Bytes::from("Hello, world!");
 
         std::fs::write(file_name, &content).unwrap();
