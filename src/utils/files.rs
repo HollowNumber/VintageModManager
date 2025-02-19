@@ -1,5 +1,5 @@
 use crate::api::ModInfo;
-use crate::{get_vintage_mods_dir, LogLevel, Logger, ModOptions, RequestOrIOError};
+use crate::{get_vintage_mods_dir, CliOptions, LogLevel, Logger, RequestOrIOError};
 use bytes::Bytes;
 use std::io::Read;
 use std::path::PathBuf;
@@ -226,9 +226,10 @@ impl FileManager {
 
     pub async fn collect_mods(
         &self,
-        option: &Option<ModOptions>,
+        option: &Option<CliOptions>,
     ) -> Result<Vec<(ModInfo, PathBuf)>, RequestOrIOError> {
-        let option = option.as_ref().unwrap();
+        let default_option = CliOptions::default();
+        let option = option.as_ref().unwrap_or(&default_option);
         let mod_vec = self.get_modinfo_with_paths().await?;
         let mods = mod_vec
             .into_iter()

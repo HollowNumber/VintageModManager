@@ -35,7 +35,20 @@ pub enum Commands {
     /// Exports mods from the mod folder to a shareable string.
     Export {
         #[clap(short, long, action=ArgAction::SetTrue)]
-        export: Option<bool>,
+        /// Exports all mods in the mod folder, default behaviour.
+        all: Option<bool>,
+
+        #[clap(long)]
+        /// Exports the `mod ids` in the mod folder that are not in the `exclude` list
+        exclude: Option<Vec<String>>,
+
+        #[clap(long)]
+        /// Exports the specified `mod ids` in the mod folder
+        include: Option<Vec<String>>,
+
+        #[clap(long, name = "mod")]
+        /// Only exports the `mod id` specified
+        mod_: Option<String>,
     },
 
     /// Updates mods in the mod folder.
@@ -56,4 +69,22 @@ pub enum Commands {
         /// Only updates the `mod id` specified
         mod_: Option<String>,
     },
+}
+
+pub struct CliOptions {
+    pub(crate) all: Option<bool>,
+    pub(crate) exclude: Option<Vec<String>>,
+    pub(crate) include: Option<Vec<String>>,
+    pub(crate) mod_: Option<String>,
+}
+
+impl Default for CliOptions {
+    fn default() -> Self {
+        CliOptions {
+            all: None,
+            exclude: None,
+            include: None,
+            mod_: None,
+        }
+    }
 }

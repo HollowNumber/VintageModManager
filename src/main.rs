@@ -15,6 +15,7 @@ use spinners::{Spinner, Spinners};
 
 use tokio::io::AsyncWriteExt;
 
+use crate::utils::CliOptions;
 use thiserror::Error;
 
 // Will not be used in the final version
@@ -54,8 +55,20 @@ async fn main() -> Result<(), RequestOrIOError> {
             import_mods(mod_string, &api, &file_manager, &encoder, &logger).await?;
         }
 
-        Some(Commands::Export { export: _export }) => {
-            let mods = file_manager.collect_mods(&None).await?;
+        Some(Commands::Export {
+            all,
+            exclude,
+            include,
+            mod_,
+        }) => {
+            let mods = file_manager
+                .collect_mods(&Some(CliOptions {
+                    all,
+                    exclude,
+                    include,
+                    mod_,
+                }))
+                .await?;
 
             let encoder_data: Vec<EncoderData> = mods
                 .iter()
@@ -79,7 +92,7 @@ async fn main() -> Result<(), RequestOrIOError> {
                 &file_manager,
                 &encoder,
                 &logger,
-                Some(ModOptions {
+                Some(CliOptions {
                     all,
                     exclude,
                     include,
@@ -100,7 +113,7 @@ async fn update_mods(
     file_manager: &FileManager,
     encoder: &Encoder,
     logger: &Logger,
-    mod_options: Option<ModOptions>,
+    mod_options: Option<CliOptions>,
 ) -> Result<(), RequestOrIOError> {
     let mods: Vec<(ModInfo, PathBuf)> = file_manager.collect_mods(&mod_options).await?;
     let vintage_mods_dir = get_vintage_mods_dir();
@@ -186,11 +199,4 @@ async fn import_mods(
 
     progress_bar.finish();
     Ok(())
-}
-
-struct ModOptions {
-    all: Option<bool>,
-    exclude: Option<Vec<String>>,
-    include: Option<Vec<String>>,
-    mod_: Option<String>,
 }
