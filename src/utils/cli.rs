@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(author = "Mikkel M.H Pedersen", version = "0.3.0", long_about = None)]
+#[command(author = "Mikkel M.H Pedersen", version = "0.4.0", long_about = None)]
 pub struct CLI {
     #[clap(short, long, action=ArgAction::SetTrue)]
     /// Enable verbose output

@@ -1,5 +1,9 @@
 # Changelog
 
+## v[0.4.0] - 2025-02-19
+
+- Version bump to 0.4.0
+
 ## [v0.1.5] - 2025-02-19
 
 - Potentially fixed the trailing comma issue when deserializing mod infos from the mod folder
