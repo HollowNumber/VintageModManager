@@ -1,5 +1,6 @@
+use crate::api::Release;
 use crate::utils::{LogLevel, Logger};
-use crate::{APIData, ModInfo};
+use crate::{ModApiResponse, ModInfo};
 use reqwest::Client;
 
 const VINTAGE_STORY_URL: &str = "http://mods.vintagestory.at";
@@ -76,7 +77,7 @@ impl VintageAPIHandler {
     /// # Returns
     ///
     /// A `Result` containing the mods data as a `String` or an error.
-    pub async fn get_mods(&self) -> Result<String, reqwest::Error> {
+    pub async fn fetch_mods(&self) -> Result<String, reqwest::Error> {
         let url = format!("{}/api/mods", &self.api_url);
         let resp = self.client.get(&url).send().await?;
         let body = resp.text().await?;
@@ -109,14 +110,17 @@ impl VintageAPIHandler {
     /// # Returns
     ///
     /// A `Result` containing the file data as `bytes::Bytes` or an error.
-    pub async fn get_filestream(&self, file_path: String) -> Result<bytes::Bytes, reqwest::Error> {
+    pub async fn fetch_file_stream(
+        &self,
+        file_path: String,
+    ) -> Result<bytes::Bytes, reqwest::Error> {
         let url = format!("{}/{}", &self.api_url, file_path);
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
         Ok(bytes)
     }
 
-    pub async fn get_filestream_from_url(
+    pub async fn fetch_file_stream_from_url(
         &self,
         url: String,
     ) -> Result<bytes::Bytes, reqwest::Error> {
@@ -131,25 +135,28 @@ impl VintageAPIHandler {
     /// * `modinfo` - The Modinfo struct to compare.
     ///
     /// # Returns
-    /// A `bool` if the mod is up to date or not.
-    pub async fn check_for_update(&self, modinfo: ModInfo) -> Result<bool, reqwest::Error> {
-        let mod_id = modinfo.modid.expect("Modid not found");
+    /// A tuple containing a boolean indicating if an update is available and a string with the version.
+    pub async fn check_for_mod_update(
+        &self,
+        mod_info: &ModInfo,
+    ) -> Result<(bool, Release), reqwest::Error> {
+        let mod_id = mod_info.modid.clone().expect("Mod id not found");
         self.logger
             .log_default(&format!("Checking for updates for mod: {}", mod_id));
         let api_mod = self.get_mod_from_name(&mod_id).await?;
-        let api_modinfo: APIData = serde_json::from_str(&api_mod).unwrap();
+        let api_mod_info: ModApiResponse = serde_json::from_str(&api_mod).unwrap();
         self.logger.log_default(&format!(
-            "Modinfo version: {:?} -- API version: {:?}",
-            modinfo.version, api_modinfo.mod_data.releases[0].modversion
+            "Mod info version: {:?} -- API version: {:?}",
+            mod_info.version, api_mod_info.mod_data.releases[0].modversion
         ));
 
-        if modinfo.version.expect("Version not found")
-            == api_modinfo.mod_data.releases[0].modversion
-        {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        let is_update_available = mod_info.version.clone().expect("Version not found")
+            != api_mod_info.mod_data.releases[0].modversion;
+
+        Ok((
+            is_update_available,
+            api_mod_info.mod_data.releases[0].clone(),
+        ))
     }
 }
 
@@ -175,7 +182,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_mods() {
         let api = VintageAPIHandler::new(false);
-        let mods = api.get_mods().await.unwrap();
+        let mods = api.fetch_mods().await.unwrap();
         assert!(mods.contains("mods"));
     }
 
@@ -191,7 +198,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_filestream() {
         let api = VintageAPIHandler::new(false);
-        let file = api.get_filestream("api/mod/1".to_string()).await.unwrap();
+        let file = api
+            .fetch_file_stream("api/mod/1".to_string())
+            .await
+            .unwrap();
         assert!(file.len() > 0);
     }
 }

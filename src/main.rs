@@ -3,9 +3,10 @@ mod utils;
 
 use clap::Parser;
 use rayon::prelude::*;
+use std::path::PathBuf;
 use tokio;
 
-use api::{APIData, ModInfo, VintageAPIHandler};
+use api::{ModApiResponse, ModInfo, VintageAPIHandler};
 use utils::{
     get_vintage_mods_dir, Commands, Encoder, EncoderData, FileManager, LogLevel, Logger, CLI,
 };
@@ -43,69 +44,153 @@ async fn main() -> Result<(), RequestOrIOError> {
     let logger = Logger::new("Main".to_string(), LogLevel::Info, None, verbose);
 
     match cli.command {
-        Some(Commands::Import {
+        Some(Commands::Download {
             mod_string,
             multi_thread,
+            mods,
+            mod_,
         }) => {
-            // ensure the mod_string exists
             let mod_string = mod_string.expect("No mod string provided");
-            logger.log_default(&format!("Importing mods from mod string: {}", mod_string));
-
-            let mut spinner = Spinner::new(Spinners::Dots9, "Decoding mods...".into());
-            let decoded = encoder
-                .decode_mod_string(mod_string)
-                .expect("Failed to decode mod string");
-            spinner.stop();
-            println!();
-
-            println!("Downloading mods:");
-            let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
-
-            for mod_data in decoded {
-                let modinfo = api.get_mod_from_name(&mod_data.mod_id).await?;
-                let modinfo: APIData = serde_json::from_str(&modinfo)?;
-                let modinfo = modinfo.mod_data;
-
-                // TODO: Currently i only download the newest release, this should be changed to download the same release denominated in the mod string
-                let mod_path =
-                    format!("{}{}", get_vintage_mods_dir(), modinfo.releases[0].filename);
-
-                let mod_bytes = api
-                    .get_filestream_from_url(modinfo.releases[0].mainfile.clone())
-                    .await?;
-
-                file_manager.save_file(&mod_path, mod_bytes).await?;
-                progress_bar.inc(1);
-            }
-
-            progress_bar.finish();
+            import_mods(mod_string, &api, &file_manager, &encoder, &logger).await?;
         }
 
-        Some(Commands::Export { export }) => {
-            let mods = file_manager
-                .get_modinfo_from_mods_folder()
-                .await?
-                .into_iter()
-                .map(|mod_slice| {
-                    let mod_string = std::str::from_utf8(&mod_slice).unwrap().to_lowercase();
-                    let modinfo: ModInfo = serde_json::from_str(&mod_string).unwrap();
-                    EncoderData {
-                        mod_id: modinfo.modid.unwrap(),
-                        mod_version: modinfo.version.unwrap(),
-                    }
-                })
-                .collect::<Vec<EncoderData>>();
+        Some(Commands::Export { export: _export }) => {
+            let mods = file_manager.collect_mods(&None).await?;
 
-            let encoded = encoder.encode_mod_string(&mods);
+            let encoder_data: Vec<EncoderData> = mods
+                .iter()
+                .map(|(modinfo, _)| EncoderData {
+                    mod_id: modinfo.modid.clone().unwrap(),
+                    mod_version: modinfo.version.clone().unwrap(),
+                })
+                .collect();
+            let encoded = encoder.encode_mod_string(&encoder_data);
             println!("{}", encoded);
         }
 
-        Some(Commands::Update { check, update }) => {
-            println!("Checking for updates");
+        Some(Commands::Update {
+            all,
+            exclude,
+            include,
+            mod_,
+        }) => {
+            update_mods(
+                &api,
+                &file_manager,
+                &encoder,
+                &logger,
+                Some(ModOptions {
+                    all,
+                    exclude,
+                    include,
+                    mod_,
+                }),
+            )
+            .await?;
         }
 
         _ => {}
     }
 
     Ok(())
+}
+
+async fn update_mods(
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+    encoder: &Encoder,
+    logger: &Logger,
+    mod_options: Option<ModOptions>,
+) -> Result<(), RequestOrIOError> {
+    let mods: Vec<(ModInfo, PathBuf)> = file_manager.collect_mods(&mod_options).await?;
+    let vintage_mods_dir = get_vintage_mods_dir();
+    let mod_folder = file_manager
+        .get_files_in_directory(&vintage_mods_dir)
+        .await?;
+
+    println!("Checking for updates...");
+    for (_mod, path) in mods {
+        let (update_available, latest_release) = api.check_for_mod_update(&_mod).await?;
+
+        if update_available {
+            println!(
+                "Update available for mod: {} - Current version: {} - New version: {}",
+                _mod.name.clone().unwrap(),
+                _mod.version.clone().unwrap(),
+                latest_release.modversion
+            );
+
+            // Delete old mod
+            println!("Deleting old mod: {}", path.display());
+            file_manager.delete_file(&path).await?;
+
+            let new_mod_path = format!("{}{}", vintage_mods_dir, latest_release.filename);
+
+            let mod_bytes = api
+                .fetch_file_stream_from_url(latest_release.mainfile.clone())
+                .await?;
+
+            file_manager.save_file(&new_mod_path, mod_bytes).await?;
+        } else {
+            println!(
+                "No update available for mod: {} - Current version: {}",
+                _mod.name.clone().unwrap(),
+                _mod.version.clone().unwrap()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+async fn import_mods(
+    mod_string: String,
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+    encoder: &Encoder,
+    logger: &Logger,
+) -> Result<(), RequestOrIOError> {
+    logger.log_default(&format!("Importing mods from mod string: {}", mod_string));
+    let vintage_mods_dir = get_vintage_mods_dir();
+
+    let mut spinner = Spinner::new(Spinners::Dots9, "Decoding mods...".into());
+    let decoded = encoder
+        .decode_mod_string(mod_string)
+        .expect("Failed to decode mod string");
+    spinner.stop();
+    println!();
+
+    println!("Downloading mods:");
+    let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
+
+    for mod_data in decoded {
+        let modinfo = api.get_mod_from_name(&mod_data.mod_id).await?;
+        let modinfo: ModApiResponse = serde_json::from_str(&modinfo)?;
+        let modinfo = modinfo.mod_data;
+
+        let release = modinfo
+            .releases
+            .iter()
+            .find(|release| release.modversion == mod_data.mod_version)
+            .expect("Mod release not found");
+
+        let mod_path = format!("{}{}", vintage_mods_dir, release.filename);
+
+        let mod_bytes = api
+            .fetch_file_stream_from_url(release.mainfile.clone())
+            .await?;
+
+        file_manager.save_file(&mod_path, mod_bytes).await?;
+        progress_bar.inc(1);
+    }
+
+    progress_bar.finish();
+    Ok(())
+}
+
+struct ModOptions {
+    all: Option<bool>,
+    exclude: Option<Vec<String>>,
+    include: Option<Vec<String>>,
+    mod_: Option<String>,
 }

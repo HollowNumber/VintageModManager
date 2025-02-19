@@ -95,7 +95,7 @@ pub struct Mod {
 
 /// Struct representing the API data.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct APIData {
+pub struct ModApiResponse {
     /// The status code of the API response.
     pub statuscode: String,
     /// The mod data.

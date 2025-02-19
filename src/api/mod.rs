@@ -1,8 +1,8 @@
-mod apidata;
 mod client;
-mod modinfo;
+mod mod_api_response;
+mod mod_info;
 mod query;
 
-pub use apidata::*;
 pub use client::*;
-pub use modinfo::*;
+pub use mod_api_response::*;
+pub use mod_info::*;

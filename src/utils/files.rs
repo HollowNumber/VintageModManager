@@ -1,6 +1,8 @@
-use crate::{get_vintage_mods_dir, LogLevel, Logger};
+use crate::api::ModInfo;
+use crate::{get_vintage_mods_dir, LogLevel, Logger, ModOptions, RequestOrIOError};
 use bytes::Bytes;
 use std::io::Read;
+use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -127,10 +129,10 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub async fn delete_file(&self, file_name: &str) -> Result<(), std::io::Error> {
+    pub async fn delete_file(&self, path_buf: &PathBuf) -> Result<(), std::io::Error> {
         self.logger
-            .log_default(&format!("Deleting file: {}", file_name));
-        fs::remove_file(file_name).await?;
+            .log_default(&format!("Deleting file: {}", path_buf.display()));
+        fs::remove_file(path_buf).await?;
         Ok(())
     }
 
@@ -211,11 +213,48 @@ impl FileManager {
         Ok(zips)
     }
 
-    pub async fn get_modinfo_from_mods_folder(&self) -> Result<Vec<Vec<u8>>, std::io::Error> {
+    async fn get_modinfo_with_paths(&self) -> Result<Vec<(Vec<u8>, PathBuf)>, std::io::Error> {
         let folder = get_vintage_mods_dir();
         let files = self.get_files_in_directory(&folder).await?;
-        let zips = self.read_modinfo_from_zips(files).await?;
-        Ok(zips)
+        let mut mod_info = vec![];
+        for file in files {
+            let zip = self.read_modinfo_from_zip(&file)?;
+            mod_info.push((zip, PathBuf::from(file)));
+        }
+        Ok(mod_info)
+    }
+
+    pub async fn collect_mods(
+        &self,
+        option: &Option<ModOptions>,
+    ) -> Result<Vec<(ModInfo, PathBuf)>, RequestOrIOError> {
+        let option = option.as_ref().unwrap();
+        let mod_vec = self.get_modinfo_with_paths().await?;
+        let mods = mod_vec
+            .into_iter()
+            .map(|(mod_slice, path)| {
+                let mod_string = std::str::from_utf8(&mod_slice).unwrap().to_lowercase();
+                let mod_info: ModInfo = serde_json::from_str(&mod_string).unwrap();
+
+                (mod_info, path)
+            })
+            .filter(|(modinfo, _)| {
+                if let Some(mod_) = &option.mod_ {
+                    return modinfo.modid.clone().unwrap() == *mod_;
+                }
+
+                if let Some(include) = &option.include {
+                    return include.contains(&modinfo.modid.clone().unwrap());
+                }
+
+                if let Some(exclude) = &option.exclude {
+                    return !exclude.contains(&modinfo.modid.clone().unwrap());
+                }
+
+                true
+            })
+            .collect::<Vec<(ModInfo, PathBuf)>>();
+        Ok(mods)
     }
 }
 

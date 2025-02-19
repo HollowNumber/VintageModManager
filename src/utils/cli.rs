@@ -1,9 +1,10 @@
 use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(author = "Mikkel M.H Pedersen", version = "0.1.0", long_about = None)]
+#[command(author = "Mikkel M.H Pedersen", version = "0.3.0", long_about = None)]
 pub struct CLI {
     #[clap(short, long, action=ArgAction::SetTrue)]
+    /// Enable verbose output
     pub verbose: Option<bool>,
 
     #[command(subcommand)]
@@ -13,33 +14,46 @@ pub struct CLI {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Imports mods from a `mod string` to the VintageStoryData/mods directory
-    Import {
-        #[clap(short, long)]
-        /// The `mod string` is the mod name and version separated by a | and each mod separated by a `;` and afterward encoded to base64
+    Download {
+        #[clap(
+            long,
+            help = "The mod string to import, gotten from the export command"
+        )]
         mod_string: Option<String>,
+
+        #[clap(long, help = "mods to download, can be either a mod id or a mod name")]
+        mods: Option<Vec<String>>,
+
+        #[clap(long, help = "The mod id or name of the mod to download", name = "mod")]
+        mod_: Option<String>,
 
         #[clap(long, action=ArgAction::SetTrue, help="Multi thread the download of mods, currently not implemented"
         )]
-        /// Multi thread the download of mods
-        /// This will download multiple mods at the same time
         multi_thread: Option<bool>,
     },
 
-    /// Exports mods from the VintageStoryData/mods directory to a `mod string`.
-    /// The `mod string` contains mod names and versions separated by `|` and each mod separated by `;`, then encoded to Base64.
-    /// It can be used to import mods on another computer.
+    /// Exports mods from the mod folder to a shareable string.
     Export {
         #[clap(short, long, action=ArgAction::SetTrue)]
         export: Option<bool>,
     },
 
+    /// Updates mods in the mod folder.
     Update {
         #[clap(short, long, action=ArgAction::SetTrue)]
-        /// Checks for mod updates in the VintageStoryData/mods directory.
-        check: Option<bool>,
+        /// Updates all mods in the mod folder, default behaviour.
+        all: Option<bool>,
 
-        #[clap(short, long, action=ArgAction::SetTrue)]
-        /// Updates the mods in the VintageStoryData/mods directory
-        update: Option<bool>,
+        #[clap(long)]
+        /// Updates the `mod ids` in the mod folder that are not in the `exclude` list
+        exclude: Option<Vec<String>>,
+
+        #[clap(long)]
+        /// Updates the specified `mod ids` in the mod folder
+        include: Option<Vec<String>>,
+
+        #[clap(long, name = "mod")]
+        /// Only updates the `mod id` specified
+        mod_: Option<String>,
     },
 }
