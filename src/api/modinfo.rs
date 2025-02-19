@@ -27,7 +27,7 @@ pub struct ModInfo {
     #[serde(deserialize_with = "deserialize_optional")]
     pub description: Option<String>,
     /// The website of the mod.
-    #[serde(deserialize_with = "deserialize_optional")]
+    #[serde(deserialize_with = "deserialize_optional", flatten)]
     pub website: Option<String>,
     /// The authors of the mod.
     #[serde(deserialize_with = "deserialize_optional")]

@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Struct representing a release of a mod.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Release {
     /// The ID of the release.
     pub releaseid: u32,
