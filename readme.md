@@ -1,6 +1,6 @@
 # VintageModManager
 
-[![format](https://github.com/HollowNumber/VintageModManager/actions/workflows/formatter.yml/badge.svg)](https://github.com/HollowNumber/VintageModManager/actions/workflows/formatter.yml)[![tests](https://github.com/HollowNumber/VintageModManager/actions/workflows/test.yml/badge.svg)](https://github.com/HollowNumber/VintageModManager/actions/workflows/test.yml)
+[![format](https://github.com/HollowNumber/VintageModManager/actions/workflows/formatter.yml/badge.svg)](https://github.com/HollowNumber/VintageModManager/actions/workflows/formatter.yml) [![tests](https://github.com/HollowNumber/VintageModManager/actions/workflows/test.yml/badge.svg)](https://github.com/HollowNumber/VintageModManager/actions/workflows/test.yml) [![GitHub release](https://img.shields.io/github/release/HollowNumber/VintageModManager.svg)](https://github.com/HollowNumber/VintageModManager/releases/latest) [![Release](https://github.com/HollowNumber/VintageModManager/actions/workflows/release.yml/badge.svg)](https://github.com/HollowNumber/VintageModManager/actions/workflows/release.yml)
 
 VintageModManager is a Rust-based application designed to manage and organize mods for Vintage Story. This project aims
 to provide a comprehensive solution for mod management, including features such as mod list parsing, auto downloading as
@@ -14,9 +14,10 @@ to improve and expand the functionality of VintageModManager.
 
 ## Features
 
-- **Mod String Encoding/Decoding:** Encode and decode mod strings using base64 encoding.
 - **Mod Information Handling:** Parse and manage mod information from JSON data.
 - **Mod Downloading:** Download mods from the Vintage Story moddb api.
+- **Mod Exporting**: Export your mods to a shareable string that can be imported by other users.
+- **Mod Updating:** Update mods to the latest version available on the moddb.
 
 ## Project Structure
 
@@ -78,9 +79,11 @@ the [official Rust website](https://www.rust-lang.org/).
   - [x] Downloading of mods
   - [x] Basic querying of mods
 - [x] Implement mod updating
+- [x] Implement mod exporting
+- [x] Implement mod importing
 - [ ] Implement a GUI for the application
   - [ ] Implement some form of configuration file for the application
-- [ ] Implement some form of caching for mod data, to reduce the number of requests made to the API
+  - [ ] Implement some form of caching for mod data, to reduce the number of requests made to the API
 
 ## Contributing
 
@@ -89,9 +92,9 @@ find any bugs.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
 ---
 
 **Disclaimer:** This project is a work in progress, and many features are still being developed. The current
-implementation may not be fully functional, and the API is subject to change. Use at your own risk.
+implementation may not be fully functional. Use at your own risk.

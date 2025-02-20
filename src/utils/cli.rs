@@ -72,10 +72,17 @@ pub enum Commands {
 }
 
 pub struct CliOptions {
-    pub(crate) all: Option<bool>,
-    pub(crate) exclude: Option<Vec<String>>,
-    pub(crate) include: Option<Vec<String>>,
-    pub(crate) mod_: Option<String>,
+    pub all: Option<bool>,
+    pub exclude: Option<Vec<String>>,
+    pub include: Option<Vec<String>>,
+    pub mod_: Option<String>,
+}
+
+pub struct DownloadOptions {
+    pub mod_string: Option<String>,
+    pub mods: Option<Vec<String>>,
+    pub mod_: Option<String>,
+    pub multi_thread: Option<bool>,
 }
 
 impl Default for CliOptions {

@@ -8,10 +8,9 @@ use tokio;
 
 use api::{ModApiResponse, ModInfo, VintageAPIHandler};
 use utils::{
-    get_vintage_mods_dir, Commands, Encoder, EncoderData, FileManager, LogLevel, Logger, CLI,
+    get_vintage_mods_dir, Commands, DownloadOptions, Encoder, EncoderData, FileManager, LogLevel,
+    Logger, CLI,
 };
-
-use spinners::{Spinner, Spinners};
 
 use tokio::io::AsyncWriteExt;
 
@@ -51,8 +50,19 @@ async fn main() -> Result<(), RequestOrIOError> {
             mods,
             mod_,
         }) => {
-            let mod_string = mod_string.expect("No mod string provided");
-            import_mods(mod_string, &api, &file_manager, &encoder, &logger).await?;
+            import_mods(
+                Some(DownloadOptions {
+                    mod_string,
+                    mods,
+                    mod_,
+                    multi_thread,
+                }),
+                &api,
+                &file_manager,
+                &encoder,
+                &logger,
+            )
+            .await?;
         }
 
         Some(Commands::Export {
@@ -161,48 +171,104 @@ async fn update_mods(
 }
 
 async fn import_mods(
-    mod_string: String,
+    options: Option<DownloadOptions>,
     api: &VintageAPIHandler,
     file_manager: &FileManager,
     encoder: &Encoder,
     logger: &Logger,
 ) -> Result<(), RequestOrIOError> {
-    logger.log_default(&format!("Importing mods from mod string: {}", mod_string));
-    let vintage_mods_dir = get_vintage_mods_dir();
+    let options = options.unwrap();
 
-    let mut spinner = Spinner::new(Spinners::Dots9, "Decoding mods...".into());
-    let decoded = encoder
-        .decode_mod_string(mod_string)
-        .expect("Failed to decode mod string");
-    spinner.stop();
-    println!();
+    if let Some(mod_string) = &options.mod_string {
+        download_mod_string(mod_string, api, file_manager, encoder, logger).await?;
+    }
 
-    println!("Downloading mods:");
-    let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
+    if let Some(mods) = &options.mods {
+        download_mods(mods, api, file_manager, logger).await?;
+    }
 
-    for mod_data in decoded {
-        logger.log_default(&format!("Downloading mod: {}", mod_data.mod_id));
-        let modinfo = api.get_mod_from_name(&mod_data.mod_id).await?;
-        logger.log_default(&format!("Modinfo: {}", modinfo));
-        let modinfo: ModApiResponse = serde_json::from_str(&modinfo)?;
-        let modinfo = modinfo.mod_data;
+    if let Some(mod_) = &options.mod_ {
+        download_mod(mod_, api, file_manager, logger).await?;
+    }
 
-        let release = modinfo
-            .releases
-            .iter()
-            .find(|release| release.modversion.clone().unwrap() == mod_data.mod_version)
-            .expect("Mod release not found");
+    Ok(())
+}
 
-        let mod_path = format!("{}{}", vintage_mods_dir, release.filename.clone().unwrap());
+async fn download_mod(
+    mod_data: &String,
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+    logger: &Logger,
+) -> Result<(), RequestOrIOError> {
+    let modinfo = fetch_mod_info(mod_data, api, logger).await?;
+    save_mod_file(&modinfo, api, file_manager).await?;
+    Ok(())
+}
 
-        let mod_bytes = api
-            .fetch_file_stream_from_url(release.mainfile.clone().unwrap())
-            .await?;
+async fn download_mods(
+    mods: &Vec<String>,
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+    logger: &Logger,
+) -> Result<(), RequestOrIOError> {
+    let progress_bar = indicatif::ProgressBar::new(mods.len() as u64);
 
-        file_manager.save_file(&mod_path, mod_bytes).await?;
+    for mod_id in mods {
+        let modinfo = fetch_mod_info(mod_id, api, logger).await?;
+        save_mod_file(&modinfo, api, file_manager).await?;
         progress_bar.inc(1);
     }
 
     progress_bar.finish();
+    Ok(())
+}
+
+async fn download_mod_string(
+    mod_string: &String,
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+    encoder: &Encoder,
+    logger: &Logger,
+) -> Result<(), RequestOrIOError> {
+    let decoded = encoder.decode_mod_string(mod_string.clone()).unwrap();
+    let progress_bar = indicatif::ProgressBar::new(decoded.len() as u64);
+
+    for mod_data in decoded {
+        let modinfo = fetch_mod_info(&mod_data.mod_id, api, logger).await?;
+        save_mod_file(&modinfo, api, file_manager).await?;
+        progress_bar.inc(1);
+    }
+
+    progress_bar.finish();
+    Ok(())
+}
+
+async fn fetch_mod_info(
+    mod_id: &String,
+    api: &VintageAPIHandler,
+    logger: &Logger,
+) -> Result<ModApiResponse, RequestOrIOError> {
+    logger.log_default(&format!("Fetching mod info: {}", mod_id));
+    let modinfo = api.get_mod_from_name(mod_id).await?;
+    let modinfo: ModApiResponse = serde_json::from_str(&modinfo)?;
+    Ok(modinfo)
+}
+
+async fn save_mod_file(
+    modinfo: &ModApiResponse,
+    api: &VintageAPIHandler,
+    file_manager: &FileManager,
+) -> Result<(), RequestOrIOError> {
+    let vintage_mods_dir = get_vintage_mods_dir();
+    let release = &modinfo.mod_data.releases[0];
+    let mod_path = format!("{}{}", vintage_mods_dir, release.filename.clone().unwrap());
+
+    println!("Downloading mod: {}", release.filename.clone().unwrap());
+
+    let mod_bytes = api
+        .fetch_file_stream_from_url(release.mainfile.clone().unwrap())
+        .await?;
+
+    file_manager.save_file(&mod_path, mod_bytes).await?;
     Ok(())
 }

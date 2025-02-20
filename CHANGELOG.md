@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.5.2] - 2025-02-20
+
+### Additions
+
++ Added support for the `--mods` flag in the `download` command
++ Added support for the `--mod` flag in the `download` command
++ Added `DownloadOptions` struct to hold the download options
+
+### Changes
+
+- Refactored `import_mods` function to use `DownloadOptions` struct
+- Split up the `import_mods` function into smaller functions to allow the usage of the new flags.
+- Updated `Readme` to reflect the new changes
+
 ## [v0.4.1] - 2025-02-19
 
 - Fixed api data deserialization issue
