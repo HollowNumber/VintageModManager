@@ -1,7 +1,7 @@
 use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
-#[command(author = "Mikkel M.H Pedersen", version = "0.4.0", long_about = None)]
+#[command(author = "Mikkel M.H Pedersen", version = "0.5.3", long_about = None)]
 pub struct CLI {
     #[clap(short, long, action=ArgAction::SetTrue)]
     /// Enable verbose output
@@ -21,7 +21,11 @@ pub enum Commands {
         )]
         mod_string: Option<String>,
 
-        #[clap(long, help = "mods to download, can be either a mod id or a mod name")]
+        #[clap(
+            long,
+            help = "mods to download, can be either a mod id or a mod name",
+            value_delimiter = ' '
+        )]
         mods: Option<Vec<String>>,
 
         #[clap(long, help = "The mod id or name of the mod to download", name = "mod")]
@@ -38,11 +42,11 @@ pub enum Commands {
         /// Exports all mods in the mod folder, default behaviour.
         all: Option<bool>,
 
-        #[clap(long)]
+        #[clap(long, value_delimiter = ' ')]
         /// Exports the `mod ids` in the mod folder that are not in the `exclude` list
         exclude: Option<Vec<String>>,
 
-        #[clap(long)]
+        #[clap(long, value_delimiter = ' ')]
         /// Exports the specified `mod ids` in the mod folder
         include: Option<Vec<String>>,
 
@@ -57,11 +61,11 @@ pub enum Commands {
         /// Updates all mods in the mod folder, default behaviour.
         all: Option<bool>,
 
-        #[clap(long)]
+        #[clap(long, value_delimiter = ' ')]
         /// Updates the `mod ids` in the mod folder that are not in the `exclude` list
         exclude: Option<Vec<String>>,
 
-        #[clap(long)]
+        #[clap(long, value_delimiter = ' ')]
         /// Updates the specified `mod ids` in the mod folder
         include: Option<Vec<String>>,
 

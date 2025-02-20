@@ -72,6 +72,65 @@ the [official Rust website](https://www.rust-lang.org/).
     cargo run
     ```
 
+## Usage
+
+The application is currently in development, and the CLI is subject to change.
+
+To start download the newest version of the cli from
+the [releases page](https://github.com/HollowNumber/VintageModManager/releases)
+
+To see the available commands and options, run the following command:
+
+```sh
+VintageModManager --help
+```
+
+or the shorthand
+
+```sh
+VintageModManager -h
+```
+
+All commands have their own help page, which can be accessed by running the command with the `--help` flag.
+
+```sh
+VintageModManager <command> --help
+```
+
+### Examples
+
+To export your mods to a shareable string:
+
+```sh
+VintageModManager export
+```
+
+To import mods from a shareable string:
+
+```sh
+VintageModManager import <mod_string>
+```
+
+Where `<mod_string>` is the string you received from the export command.
+
+To download a mod:
+
+```sh
+VintageModManager download <mod_id>
+```
+
+Where `<mod_id>` is the ID of the mod you want to download. This can be found on the moddb page of the mod.
+
+To update a mod:
+
+```sh
+VintageModManager update <mod_id>
+```
+
+Where `<mod_id>` is the ID of the mod you want to update. This can be found on the moddb page of the mod.
+
+Note: Default behavior is to update all mods. So unless you specify a mod id, all mods will be updated.
+
 ## Roadmap
 
 - [x] Implement interfacing with the Vintage Story moddb API

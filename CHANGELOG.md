@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.5.3] - 2025-02-20
+
+### Changes
+
+- Wrote more information in the Readme about the new flags and how to use them
+- Version bump to 0.5.3
+
 ## [v0.5.2] - 2025-02-20
 
 ### Additions
