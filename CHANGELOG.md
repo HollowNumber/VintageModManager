@@ -6,6 +6,7 @@
 
 - Renamed readme.md to README.md to make it more visible on GitHub
 - Updated cargo.toml to include the new README.md file
+- Ran fmt on the project to make sure everything is formatted correctly
 
 ### Additions
 

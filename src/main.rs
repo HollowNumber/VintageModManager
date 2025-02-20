@@ -46,7 +46,6 @@ async fn main() -> Result<(), RequestOrIOError> {
     match cli.command {
         Some(Commands::Download {
             mod_string,
-            multi_thread,
             mods,
             mod_,
         }) => {
@@ -55,7 +54,6 @@ async fn main() -> Result<(), RequestOrIOError> {
                     mod_string,
                     mods,
                     mod_,
-                    multi_thread,
                 }),
                 &api,
                 &file_manager,
@@ -66,14 +64,12 @@ async fn main() -> Result<(), RequestOrIOError> {
         }
 
         Some(Commands::Export {
-            all,
             exclude,
             include,
             mod_,
         }) => {
             let mods = file_manager
                 .collect_mods(&Some(CliOptions {
-                    all,
                     exclude,
                     include,
                     mod_,
@@ -92,7 +88,6 @@ async fn main() -> Result<(), RequestOrIOError> {
         }
 
         Some(Commands::Update {
-            all,
             exclude,
             include,
             mod_,
@@ -103,7 +98,6 @@ async fn main() -> Result<(), RequestOrIOError> {
                 &encoder,
                 &logger,
                 Some(CliOptions {
-                    all,
                     exclude,
                     include,
                     mod_,
@@ -119,17 +113,11 @@ async fn main() -> Result<(), RequestOrIOError> {
 }
 
 async fn update_mods(
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
-    encoder: &Encoder,
-    logger: &Logger,
+    api: &VintageAPIHandler, file_manager: &FileManager, encoder: &Encoder, logger: &Logger,
     mod_options: Option<CliOptions>,
 ) -> Result<(), RequestOrIOError> {
     let mods: Vec<(ModInfo, PathBuf)> = file_manager.collect_mods(&mod_options).await?;
     let vintage_mods_dir = get_vintage_mods_dir();
-    let mod_folder = file_manager
-        .get_files_in_directory(&vintage_mods_dir)
-        .await?;
 
     println!("Checking for updates...");
     for (_mod, path) in mods {
@@ -171,11 +159,8 @@ async fn update_mods(
 }
 
 async fn import_mods(
-    options: Option<DownloadOptions>,
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
-    encoder: &Encoder,
-    logger: &Logger,
+    options: Option<DownloadOptions>, api: &VintageAPIHandler, file_manager: &FileManager,
+    encoder: &Encoder, logger: &Logger,
 ) -> Result<(), RequestOrIOError> {
     let options = options.unwrap();
 
@@ -195,10 +180,7 @@ async fn import_mods(
 }
 
 async fn download_mod(
-    mod_data: &String,
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
-    logger: &Logger,
+    mod_data: &String, api: &VintageAPIHandler, file_manager: &FileManager, logger: &Logger,
 ) -> Result<(), RequestOrIOError> {
     let modinfo = fetch_mod_info(mod_data, api, logger).await?;
     save_mod_file(&modinfo, api, file_manager).await?;
@@ -206,10 +188,7 @@ async fn download_mod(
 }
 
 async fn download_mods(
-    mods: &Vec<String>,
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
-    logger: &Logger,
+    mods: &Vec<String>, api: &VintageAPIHandler, file_manager: &FileManager, logger: &Logger,
 ) -> Result<(), RequestOrIOError> {
     let progress_bar = indicatif::ProgressBar::new(mods.len() as u64);
 
@@ -224,10 +203,7 @@ async fn download_mods(
 }
 
 async fn download_mod_string(
-    mod_string: &String,
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
-    encoder: &Encoder,
+    mod_string: &String, api: &VintageAPIHandler, file_manager: &FileManager, encoder: &Encoder,
     logger: &Logger,
 ) -> Result<(), RequestOrIOError> {
     let decoded = encoder.decode_mod_string(mod_string.clone()).unwrap();
@@ -244,9 +220,7 @@ async fn download_mod_string(
 }
 
 async fn fetch_mod_info(
-    mod_id: &String,
-    api: &VintageAPIHandler,
-    logger: &Logger,
+    mod_id: &String, api: &VintageAPIHandler, logger: &Logger,
 ) -> Result<ModApiResponse, RequestOrIOError> {
     logger.log_default(&format!("Fetching mod info: {}", mod_id));
     let modinfo = api.get_mod_from_name(mod_id).await?;
@@ -255,9 +229,7 @@ async fn fetch_mod_info(
 }
 
 async fn save_mod_file(
-    modinfo: &ModApiResponse,
-    api: &VintageAPIHandler,
-    file_manager: &FileManager,
+    modinfo: &ModApiResponse, api: &VintageAPIHandler, file_manager: &FileManager,
 ) -> Result<(), RequestOrIOError> {
     let vintage_mods_dir = get_vintage_mods_dir();
     let release = &modinfo.mod_data.releases[0];

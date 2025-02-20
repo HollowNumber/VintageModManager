@@ -61,10 +61,7 @@ impl Logger {
     ///
     /// A new `Logger` instance.
     pub fn new(
-        logger_name: String,
-        default_log_level: LogLevel,
-        file_path: Option<&str>,
-        verbose: bool,
+        logger_name: String, default_log_level: LogLevel, file_path: Option<&str>, verbose: bool,
     ) -> Logger {
         let file = file_path.map(|path| {
             Rc::new(RefCell::new(

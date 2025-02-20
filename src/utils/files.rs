@@ -184,8 +184,7 @@ impl FileManager {
     /// # Returns
     ///  A `Result` containing a vector of strings or an error.
     pub async fn get_files_in_directory(
-        &self,
-        directory: &str,
+        &self, directory: &str,
     ) -> Result<Vec<String>, std::io::Error> {
         self.logger
             .log_default(&format!("Getting files in directory: {}", directory));
@@ -202,8 +201,7 @@ impl FileManager {
     }
 
     pub async fn read_modinfo_from_zips(
-        &self,
-        paths: Vec<String>,
+        &self, paths: Vec<String>,
     ) -> Result<Vec<Vec<u8>>, std::io::Error> {
         let mut zips = vec![];
         for path in paths {
@@ -225,8 +223,7 @@ impl FileManager {
     }
 
     pub async fn collect_mods(
-        &self,
-        option: &Option<CliOptions>,
+        &self, option: &Option<CliOptions>,
     ) -> Result<Vec<(ModInfo, PathBuf)>, RequestOrIOError> {
         let default_option = CliOptions::default();
         let option = option.as_ref().unwrap_or(&default_option);

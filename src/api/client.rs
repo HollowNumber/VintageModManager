@@ -111,8 +111,7 @@ impl VintageAPIHandler {
     ///
     /// A `Result` containing the file data as `bytes::Bytes` or an error.
     pub async fn fetch_file_stream(
-        &self,
-        file_path: String,
+        &self, file_path: String,
     ) -> Result<bytes::Bytes, reqwest::Error> {
         let url = format!("{}/{}", &self.api_url, file_path);
         let resp = self.client.get(&url).send().await?;
@@ -121,8 +120,7 @@ impl VintageAPIHandler {
     }
 
     pub async fn fetch_file_stream_from_url(
-        &self,
-        url: String,
+        &self, url: String,
     ) -> Result<bytes::Bytes, reqwest::Error> {
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
@@ -137,8 +135,7 @@ impl VintageAPIHandler {
     /// # Returns
     /// A tuple containing a boolean indicating if an update is available and a string with the version.
     pub async fn check_for_mod_update(
-        &self,
-        mod_info: &ModInfo,
+        &self, mod_info: &ModInfo,
     ) -> Result<(bool, Release), reqwest::Error> {
         let mod_id = mod_info.modid.clone().expect("Mod id not found");
         self.logger
