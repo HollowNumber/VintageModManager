@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.5.4] - 2025-02-20
+
+### Changes
+
+- Renamed readme.md to README.md to make it more visible on GitHub
+- Updated cargo.toml to include the new README.md file
+
+### Additions
+
++ Added clippy configuration to the project
++ Added rustfmt configuration to the project
+
 ## [v0.5.3] - 2025-02-20
 
 ### Changes
