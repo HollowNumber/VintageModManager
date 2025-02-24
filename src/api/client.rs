@@ -1,12 +1,12 @@
-use crate::api::Release;
+use crate::api::{ModApiResponse, ModInfo};
+use crate::api::{ModSearchResponse, Release};
 use crate::utils::{LogLevel, Logger};
-use crate::{ModApiResponse, ModInfo};
 use reqwest::Client;
 
 const VINTAGE_STORY_URL: &str = "http://mods.vintagestory.at";
 
 /// Struct to handle interactions with the Vintage Story API.
-pub struct VintageAPIHandler {
+pub struct VintageApiHandler {
     /// HTTP client for making requests.
     client: Client,
     /// Base URL of the Vintage Story API.
@@ -15,7 +15,7 @@ pub struct VintageAPIHandler {
     logger: Logger,
 }
 
-impl VintageAPIHandler {
+impl VintageApiHandler {
     /// Creates a new `VintageAPIHandler` instance.
     ///
     /// # Returns
@@ -62,9 +62,6 @@ impl VintageAPIHandler {
     ///
     /// A `Result` containing the mod data as a `String` or an error.
     ///
-    /// # Todo
-    ///
-    /// Implement the `get_mod_from_name` method.
     pub async fn get_mod_from_name(&self, name: &str) -> Result<String, reqwest::Error> {
         let url = format!("{}/api/mod/{}", &self.api_url, name);
         let resp = self.client.get(&url).send().await?;
@@ -93,12 +90,12 @@ impl VintageAPIHandler {
     /// # Returns
     ///
     /// A `Result` containing the search results as a `String` or an error.
-    pub async fn search_mods(&self, query: String) -> Result<String, reqwest::Error> {
+    pub async fn search_mods(&self, query: String) -> Result<ModSearchResponse, reqwest::Error> {
         let url = format!("{}/api/mods?{}", &self.api_url, query);
-        self.logger.log(LogLevel::Info, &*url);
+        self.logger.log(LogLevel::Info, &url);
         let resp = self.client.get(&url).send().await?;
-        let body = resp.text().await?;
-        Ok(body)
+        let search_results: ModSearchResponse = serde_json::from_str(&resp.text().await?).unwrap();
+        Ok(search_results)
     }
 
     /// Fetches a file stream from a given file path.
@@ -109,22 +106,18 @@ impl VintageAPIHandler {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the file data as `bytes::Bytes` or an error.
-    pub async fn fetch_file_stream(
-        &self, file_path: String,
-    ) -> Result<bytes::Bytes, reqwest::Error> {
+    /// A `Result` containing the file data as `Vector<u8>` or an error.
+    pub async fn fetch_file_stream(&self, file_path: String) -> Result<Vec<u8>, reqwest::Error> {
         let url = format!("{}/{}", &self.api_url, file_path);
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
-        Ok(bytes)
+        Ok(bytes.to_vec())
     }
 
-    pub async fn fetch_file_stream_from_url(
-        &self, url: String,
-    ) -> Result<bytes::Bytes, reqwest::Error> {
+    pub async fn fetch_file_stream_from_url(&self, url: String) -> Result<Vec<u8>, reqwest::Error> {
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
-        Ok(bytes)
+        Ok(bytes.to_vec())
     }
 
     /// Compares local Modinfo with the API Modinfo for updates.
@@ -167,41 +160,48 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_mod_from_id() {
-        let api = VintageAPIHandler::new(false);
+        let api = VintageApiHandler::new(false);
         let mod_data = api.get_mod_from_id(3351).await.unwrap();
         assert!(mod_data.contains("Crude Arrows"));
     }
 
     #[tokio::test]
     async fn test_get_mod_from_name() {
-        let api = VintageAPIHandler::new(false);
+        let api = VintageApiHandler::new(false);
         let mod_data = api.get_mod_from_name("crudetoflintarrow").await.unwrap();
         assert!(mod_data.contains("Crude Arrows"));
     }
 
     #[tokio::test]
     async fn test_get_mods() {
-        let api = VintageAPIHandler::new(false);
+        let api = VintageApiHandler::new(false);
         let mods = api.fetch_mods().await.unwrap();
         assert!(mods.contains("mods"));
     }
 
     #[tokio::test]
     async fn test_search_mods() {
-        let api = VintageAPIHandler::new(false);
-        let query = Query::new().with_text("jack").build();
+        let api = VintageApiHandler::new(false);
+        let query = Query::new().with_text(&vec!["jack".into()]).build();
 
-        let mods = api.search_mods(query).await.unwrap();
-        assert!(mods.contains("jack"));
+        let search_results = api.search_mods(query).await.unwrap();
+        assert_eq!(search_results.statuscode, "200");
+        assert!(!search_results.mods.is_empty());
+        assert!(
+            search_results
+                .mods
+                .iter()
+                .any(|m| m.name.to_lowercase().contains("jack"))
+        );
     }
 
     #[tokio::test]
     async fn test_get_filestream() {
-        let api = VintageAPIHandler::new(false);
+        let api = VintageApiHandler::new(false);
         let file = api
             .fetch_file_stream("api/mod/1".to_string())
             .await
             .unwrap();
-        assert!(file.len() > 0);
+        assert!(!file.is_empty());
     }
 }

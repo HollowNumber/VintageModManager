@@ -4,6 +4,7 @@ use std::collections::HashMap;
 /// Struct representing the information of a mod. that's given in the modinfo.json file.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase", default)]
+#[derive(Clone)]
 pub struct ModInfo {
     /// The type of the mod.
     #[serde(rename = "type", deserialize_with = "deserialize_optional")]
@@ -71,15 +72,8 @@ impl Default for ModInfo {
     }
 }
 
-/// Deserializes an optional value.
-///
-/// # Arguments
-///
-/// * `deserializer` - The deserializer to use.
-///
-/// # Returns
-///
-/// A `Result` containing an `Option` with the deserialized value or an error.
+// Hacky way to deserialize optional fields.
+// This is needed because the modinfo.json file can have optional fields. and sometimes the fields have invalid types and Serde throws a hissy fit.
 fn deserialize_optional<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,

@@ -1,50 +1,7 @@
 use directories::BaseDirs;
-use std::env;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::PathBuf;
 
-const WINDOWS_PATH: &str = "\\VintagestoryData\\Mods\\";
 const UNIX_PATH: &str = "/VintagestoryData/Mods/";
-
-/// Struct to hold basic system information.
-#[derive(Debug)]
-pub struct SystemInfo {
-    /// Operating system name.
-    pub os: String,
-    /// System architecture.
-    pub arch: String,
-}
-
-/// Get the current system time as a UNIX timestamp.
-///
-/// # Returns
-///
-/// A `u64` representing the number of seconds since the UNIX epoch.
-pub fn get_system_time() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
-}
-
-/// Get basic system information.
-///
-/// # Returns
-///
-/// A `SystemInfo` struct containing the operating system name and system architecture.
-#[deprecated(note = "Use cfg! macro instead")]
-pub fn get_system_info() -> SystemInfo {
-    let os = env::consts::OS.to_string();
-    let arch = env::consts::ARCH.to_string();
-    SystemInfo { os, arch }
-}
-
-/// Enum to represent different system types.
-pub enum SystemType {
-    Windows,
-    Linux,
-    MacOS,
-    Other,
-}
 
 /// Get the configuration directory for the current user.
 ///
@@ -55,30 +12,41 @@ pub enum SystemType {
 /// # Panics
 ///
 /// This function will panic if the base directories cannot be determined or if the configuration directory cannot be converted to a string.
-pub fn get_config_dir() -> String {
+pub fn get_config_dir() -> PathBuf {
     let base_dirs = BaseDirs::new().expect("Could not get base directories");
-    let config_dir = base_dirs
-        .config_dir()
-        .to_str()
-        .expect("Could not convert config dir to string");
-    config_dir.to_string()
+    let config_dir = base_dirs.config_dir().to_path_buf();
+    config_dir
 }
 
-pub fn get_vintage_mods_dir() -> String {
+/// Get the directory where Vintage Story mods are stored.
+///
+/// Does not check if the directory exists.
+///
+/// # Returns
+///
+/// A `String` representing the path to the Vintage Story mods directory.
+pub fn get_vintage_mods_dir() -> Result<PathBuf, std::io::Error> {
     let config_dir = get_config_dir();
 
-    let sys_folder = if cfg!(unix) {
-        UNIX_PATH
+    let sys_path = if cfg!(unix) || cfg!(target_os = "macos") {
+        PathBuf::from(UNIX_PATH)
     } else if cfg!(windows) {
-        WINDOWS_PATH
-    } else if cfg!(target_os = "macos") {
-        UNIX_PATH
+        PathBuf::from("VintagestoryData").join("Mods")
     } else {
         panic!("Unsupported operating system");
     };
 
-    let vintage_mods_dir = format!("{}{}", config_dir, sys_folder);
-    vintage_mods_dir
+    let mods_dir = config_dir.join(sys_path);
+
+    if !mods_dir.exists() {
+        // as the mods dir is created by the game we just want to panic out if it doesn't exist
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Mods directory not found",
+        ));
+    }
+
+    Ok(mods_dir)
 }
 
 #[cfg(test)]
@@ -86,27 +54,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_system_time() {
-        let time = get_system_time();
-        assert!(time > 0);
-    }
-
-    #[test]
-    fn test_get_system_info() {
-        let info = get_system_info();
-        assert!(!info.os.is_empty());
-        assert!(!info.arch.is_empty());
-    }
-
-    #[test]
     fn test_get_config_dir() {
         let config_dir = get_config_dir();
-        assert!(!config_dir.is_empty());
+        // Assert that the path
+        assert!(!config_dir.to_str().unwrap().is_empty());
     }
 
     #[test]
     fn test_get_vintage_mods_dir() {
         let mods_dir = get_vintage_mods_dir();
-        assert!(!mods_dir.is_empty());
+        assert!(
+            !mods_dir
+                .expect("Path Not Found")
+                .to_str()
+                .unwrap()
+                .is_empty()
+        );
     }
 }

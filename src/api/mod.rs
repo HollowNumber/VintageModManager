@@ -6,3 +6,4 @@ mod query;
 pub use client::*;
 pub use mod_api_response::*;
 pub use mod_info::*;
+pub use query::{OrderBy, Query};

@@ -1,8 +1,7 @@
-use serde::de::Visitor;
 use serde::Serialize;
-use serde::{de, Deserialize, Deserializer};
+use serde::de::Visitor;
+use serde::{Deserialize, Deserializer, de};
 use std::fmt;
-use std::hash::Hasher;
 
 /// Struct representing a release of a mod.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -173,4 +172,44 @@ where
         }
     }
     deserializer.deserialize_option(FilenameVisitor)
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModSearchResult {
+    pub modid: u16,
+    pub assetid: u32,
+    pub downloads: Option<u32>,
+    pub follows: Option<u32>,
+    pub trendingpoints: Option<u32>,
+    pub comments: Option<u32>,
+    pub name: String,
+    pub summary: Option<String>,
+    pub modidstrs: Vec<String>,
+    pub author: String,
+    pub urlalias: Option<String>,
+    pub side: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub logo: Option<String>,
+    pub tags: Vec<String>,
+    pub lastreleased: Option<String>,
+}
+
+/// Struct representing the search API response
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ModSearchResponse {
+    pub statuscode: String,
+    pub mods: Vec<ModSearchResult>,
+}
+
+impl fmt::Display for ModSearchResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} by {} ({} downloads)",
+            self.name,
+            self.author,
+            self.downloads.unwrap_or(0)
+        )
+    }
 }

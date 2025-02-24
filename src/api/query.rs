@@ -41,7 +41,7 @@ pub struct Query {
     /// Optional author ID to filter by.
     pub author: Option<u16>,
     /// Optional text to search by mod text and title.
-    pub text: Option<String>,
+    pub text: Option<Vec<String>>,
     /// Optional order by field.
     pub order_by: Option<OrderBy>,
     /// Optional order direction.
@@ -173,8 +173,8 @@ impl Query {
     /// assert_eq!(query, "text=example");
     /// ```
     ///
-    pub fn with_text(mut self, text: &str) -> Self {
-        self.text = Some(text.into());
+    pub fn with_text(mut self, text: &Vec<String>) -> Self {
+        self.text = Some(text.clone());
         self
     }
 
@@ -267,7 +267,10 @@ impl Query {
         }
 
         if let Some(ref text) = self.text {
-            query_string.push_str(&format!("text={}&", text));
+            let search_terms = text.join("+");
+            if !search_terms.is_empty() {
+                query_string.push_str(&format!("text={}&", search_terms));
+            }
         }
 
         if let Some(ref order_by) = self.order_by {
@@ -341,9 +344,9 @@ mod tests {
 
     #[test]
     fn test_query_with_text() {
-        let query = Query::new().with_text("example");
+        let query = Query::new().with_text(&vec!["example".into()]);
 
-        assert_eq!(query.text, Some("example".into()));
+        assert_eq!(query.text, Some(vec!["example".into()]));
     }
 
     #[test]
@@ -366,7 +369,7 @@ mod tests {
             .with_tag_ids(vec![1, 2])
             .with_game_version(42)
             .with_author(7)
-            .with_text("example")
+            .with_text(&vec!["example".into()])
             .with_order_by(OrderBy::Downloads)
             .with_order_direction(OrderDirection::Desc)
             .build();

@@ -1,7 +1,6 @@
-use crate::{LogLevel, Logger};
+use crate::utils::{LogLevel, Logger};
 use base85::{decode, encode};
 use brotli::{CompressorWriter, Decompressor};
-use std::error::Error;
 use std::io::{Read, Write};
 use std::{io, str};
 use thiserror::Error;
@@ -17,16 +16,16 @@ pub struct EncoderData {
 #[derive(Error, Debug)]
 pub enum EncodingError {
     #[error("Decoding error: {0}")]
-    DecodeError(String),
+    Decode(String),
     #[error("Decompression error: {0}")]
-    DecompressError(String),
+    Decompress(String),
     #[error("UTF-8 error: {0}")]
-    Utf8Error(#[from] std::string::FromUtf8Error),
+    Utf8(#[from] std::string::FromUtf8Error),
 }
 
 impl From<io::Error> for EncodingError {
     fn from(error: io::Error) -> Self {
-        EncodingError::DecompressError(error.to_string())
+        EncodingError::Decompress(error.to_string())
     }
 }
 
@@ -58,7 +57,6 @@ impl Encoder {
     ///
     /// A `String` containing the base85 encoded data.
     pub fn encode(&self, data: &[u8]) -> String {
-        //let encoded = self.engine.encode(data);
         let encoded = encode(data);
         self.logger
             .log_default(&format!("Encoding using `encode` function: {}", encoded));
@@ -78,7 +76,7 @@ impl Encoder {
         self.logger
             .log_default(&format!("Decoding using `decode` function: {}", data));
 
-        decode(data).map_err(|e| EncodingError::DecodeError(e.to_string()))
+        decode(data).map_err(|e| EncodingError::Decode(e.to_string()))
     }
 
     /// Encodes a list of `EncoderData` to a compact string.
@@ -134,7 +132,7 @@ impl Encoder {
     /// assert_eq!(formatted, "foo|1.10");
     ///```
     ///
-    pub fn format_encoder_data(&self, mods: &[EncoderData]) -> String {
+    fn format_encoder_data(&self, mods: &[EncoderData]) -> String {
         let mod_string = mods
             .iter()
             .map(|mod_info| format!("{}|{}", mod_info.mod_id, mod_info.mod_version))
@@ -152,7 +150,7 @@ impl Encoder {
     ///
     /// # Returns
     ///
-    /// A `Result` containing a vector of `EncoderData` or an .
+    /// A `Result` containing a vector of `EncoderData` or an EncodingError.
     pub fn decode_mod_string(&self, data: String) -> Result<Vec<EncoderData>, EncodingError> {
         let binary_data = self.decode(&data)?;
         let decompressed = self.decompress(&binary_data)?;
@@ -162,7 +160,7 @@ impl Encoder {
             .map(|mod_info| {
                 let parts: Vec<&str> = mod_info.split('|').collect();
                 if parts.len() != 2 {
-                    return Err(EncodingError::DecodeError(
+                    return Err(EncodingError::Decode(
                         "Invalid mod string format".to_string(),
                     ));
                 }

@@ -1,19 +1,34 @@
 use crate::api::ModInfo;
-use crate::{get_vintage_mods_dir, CliOptions, LogLevel, Logger, RequestOrIOError};
-use bytes::Bytes;
+use crate::utils::{CliFlags, LogLevel, Logger, get_vintage_mods_dir};
+use std::fs::File;
+
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use thiserror::Error;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
-use tokio_stream::wrappers::ReadDirStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReadDirStream;
 use zip::ZipArchive;
+
+#[derive(Error, Debug)]
+pub enum FileError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Invalid path: {0}")]
+    InvalidPath(PathBuf),
+    #[error("Zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    #[error("UTF-8 error: {0}")]
+    Utf8(#[from] std::str::Utf8Error),
+}
 
 /// Struct to manage file operations with logging.
 pub struct FileManager {
     /// Logger instance for logging file operations.
     logger: Logger,
+    base_path: PathBuf,
 }
 
 impl FileManager {
@@ -23,8 +38,10 @@ impl FileManager {
     ///
     /// A new `FileManager` instance with a default logger.
     pub fn new(verbose: bool) -> Self {
-        let logger = Logger::new("FileManager".to_string(), LogLevel::Info, None, verbose);
-        Self { logger }
+        Self {
+            logger: Logger::new("FileManager".to_string(), LogLevel::Info, None, verbose),
+            base_path: get_vintage_mods_dir().unwrap_or_default(),
+        }
     }
 
     /// Saves a file asynchronously.
@@ -37,12 +54,23 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub async fn save_file(&self, file_name: &str, bytes: Bytes) -> Result<(), std::io::Error> {
+    pub async fn save_file(&self, file_name: &PathBuf, bytes: &[u8]) -> Result<(), std::io::Error> {
         self.logger
-            .log_default(&format!("Saving file: {}", file_name));
+            .log_default(&format!("Saving file: {}", file_name.display()));
         let mut file = fs::File::create(file_name).await?;
-        file.write_all(&bytes).await?;
+        file.write_all(bytes).await?;
         Ok(())
+    }
+
+    async fn validate_path(&self, path: &PathBuf) -> Result<(), FileError> {
+        if !path.starts_with(&self.base_path) {
+            return Err(FileError::InvalidPath(path.to_owned()));
+        }
+        Ok(())
+    }
+
+    fn is_valid_mod_file(&self, path: &Path) -> bool {
+        path.extension().is_some_and(|ext| ext == "zip")
     }
 
     /// Saves a file synchronously.
@@ -55,11 +83,11 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub fn save_file_sync(&self, file_name: &str, bytes: Bytes) -> Result<(), std::io::Error> {
+    pub fn save_file_sync(&self, file_name: &str, bytes: &[u8]) -> Result<(), std::io::Error> {
         self.logger
             .log_default(&format!("Saving file: {}", file_name));
-        let mut file = std::fs::File::create(file_name)?;
-        std::io::Write::write_all(&mut file, &bytes)?;
+        let mut file = File::create(file_name)?;
+        std::io::Write::write_all(&mut file, bytes)?;
         Ok(())
     }
 
@@ -72,13 +100,14 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` containing the file content as `Bytes` or an error.
-    pub async fn read_file(&self, file_name: &str) -> Result<Bytes, std::io::Error> {
+    pub async fn read_file(&self, path: &PathBuf) -> Result<Vec<u8>, FileError> {
+        self.validate_path(path).await?;
         self.logger
-            .log_default(&format!("Reading file: {}", file_name));
-        let mut file = fs::File::open(file_name).await?;
+            .log_default(&format!("Reading file: {}", path.display()));
+        let mut file = fs::File::open(path).await?;
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).await?;
-        Ok(Bytes::from(contents))
+        Ok(contents)
     }
 
     /// Reads a file synchronously.
@@ -90,16 +119,16 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` containing the file content as `Bytes` or an error.
-    pub fn read_file_sync(&self, file_name: &str) -> Result<Bytes, std::io::Error> {
+    pub fn read_file_sync(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
         self.logger
             .log_default(&format!("Reading file: {}", file_name));
-        let mut file = std::fs::File::open(file_name)?;
+        let mut file = File::open(file_name)?;
         let mut contents = Vec::new();
         Read::read_to_end(&mut file, &mut contents)?;
-        Ok(Bytes::from(contents))
+        Ok(contents)
     }
 
-    /// Reads the `modinfo.json` file from a zip archive.
+    /// Reads the `mod_info.json` file from a zip archive.
     ///
     /// # Arguments
     ///
@@ -107,16 +136,19 @@ impl FileManager {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the content of `modinfo.json` as a `Vec<u8>` or an error.
-    pub fn read_modinfo_from_zip(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
+    /// A `Result` containing the content of `mod_info.json` as a `Vec<u8>` or an error.
+    pub fn read_mod_info_from_zip(&self, path: &PathBuf) -> Result<Vec<u8>, FileError> {
         self.logger
-            .log_default(&format!("Reading zip file: {}", file_name));
-        let file = std::fs::File::open(file_name)?;
+            .log_default(&format!("Reading zip file: {}", path.display()));
+        if !self.is_valid_mod_file(path) {
+            return Err(FileError::InvalidPath(path.to_owned()));
+        }
+
+        let file = File::open(path)?;
         let mut archive = ZipArchive::new(file)?;
-        // Look for the modinfo.json file
-        let mut modinfo = archive.by_name("modinfo.json")?;
+        let mut mod_info = archive.by_name("modinfo.json")?;
         let mut contents = Vec::new();
-        modinfo.read_to_end(&mut contents)?;
+        mod_info.read_to_end(&mut contents)?;
         Ok(contents)
     }
 
@@ -129,7 +161,7 @@ impl FileManager {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub async fn delete_file(&self, path_buf: &PathBuf) -> Result<(), std::io::Error> {
+    pub async fn delete_file(&self, path_buf: &PathBuf) -> Result<(), FileError> {
         self.logger
             .log_default(&format!("Deleting file: {}", path_buf.display()));
         fs::remove_file(path_buf).await?;
@@ -184,10 +216,12 @@ impl FileManager {
     /// # Returns
     ///  A `Result` containing a vector of strings or an error.
     pub async fn get_files_in_directory(
-        &self, directory: &str,
+        &self, directory: &PathBuf,
     ) -> Result<Vec<String>, std::io::Error> {
-        self.logger
-            .log_default(&format!("Getting files in directory: {}", directory));
+        self.logger.log_default(&format!(
+            "Getting files in directory: {}",
+            directory.display()
+        ));
         let mut files = vec![];
         let entries = fs::read_dir(directory).await?;
         let mut entries = ReadDirStream::new(entries);
@@ -200,59 +234,75 @@ impl FileManager {
         Ok(files)
     }
 
-    pub async fn read_modinfo_from_zips(
-        &self, paths: Vec<String>,
-    ) -> Result<Vec<Vec<u8>>, std::io::Error> {
-        let mut zips = vec![];
+    pub async fn read_mod_info_from_zips(
+        &self, paths: Vec<PathBuf>,
+    ) -> Result<Vec<Vec<u8>>, FileError> {
+        let mut zips = Vec::with_capacity(paths.len());
         for path in paths {
-            let zip = self.read_modinfo_from_zip(&path)?;
+            self.validate_path(&path).await?;
+            let zip = self.read_mod_info_from_zip(&path)?;
             zips.push(zip);
         }
         Ok(zips)
     }
 
-    async fn get_modinfo_with_paths(&self) -> Result<Vec<(Vec<u8>, PathBuf)>, std::io::Error> {
-        let folder = get_vintage_mods_dir();
-        let files = self.get_files_in_directory(&folder).await?;
-        let mut mod_info = vec![];
-        for file in files {
-            let zip = self.read_modinfo_from_zip(&file)?;
-            mod_info.push((zip, PathBuf::from(file)));
+    async fn get_mod_info_with_paths(&self) -> Result<Vec<(Vec<u8>, PathBuf)>, FileError> {
+        let mut mod_info = Vec::new();
+        let entries = fs::read_dir(&self.base_path).await?;
+        let mut entries = ReadDirStream::new(entries);
+
+        while let Some(entry) = entries.next().await {
+            let entry = entry?;
+            let path = entry.path();
+            if self.is_valid_mod_file(&path) {
+                let zip = self.read_mod_info_from_zip(&path)?;
+                mod_info.push((zip, path));
+            }
         }
         Ok(mod_info)
     }
 
     pub async fn collect_mods(
-        &self, option: &Option<CliOptions>,
-    ) -> Result<Vec<(ModInfo, PathBuf)>, RequestOrIOError> {
-        let default_option = CliOptions::default();
-        let option = option.as_ref().unwrap_or(&default_option);
-        let mod_vec = self.get_modinfo_with_paths().await?;
+        &self, filters: &Option<CliFlags>,
+    ) -> Result<Vec<(ModInfo, PathBuf)>, FileError> {
+        let default_flags = CliFlags::default();
+        let option = filters.as_ref().unwrap_or(&default_flags);
+        let mod_vec: Vec<(Vec<u8>, PathBuf)> = self.get_mod_info_with_paths().await?;
+
         let mods = mod_vec
             .into_iter()
-            .map(|(mod_slice, path)| {
-                let mod_string = std::str::from_utf8(&mod_slice).unwrap().to_lowercase();
-                let mod_string = remove_trailing_comma(&mod_string);
-                let mod_info: ModInfo = serde_json::from_str(&mod_string).unwrap();
-
-                (mod_info, path)
+            .filter_map(|(mod_slice, path)| {
+                let mod_string = std::str::from_utf8(&mod_slice).ok()?;
+                let mod_string = remove_trailing_comma(mod_string);
+                let mod_info: ModInfo = serde_json::from_str(&mod_string.to_lowercase()).ok()?;
+                Some((mod_info, path))
             })
-            .filter(|(modinfo, _)| {
+            .filter(|(mod_info, _)| {
                 if let Some(mod_) = &option.mod_ {
-                    return modinfo.modid.clone().unwrap() == *mod_;
+                    return mod_info
+                        .modid
+                        .as_ref()
+                        .map(|id| id.contains(&mod_.to_lowercase()))
+                        .unwrap_or(false);
                 }
-
                 if let Some(include) = &option.include {
-                    return include.contains(&modinfo.modid.clone().unwrap());
+                    return mod_info
+                        .modid
+                        .as_ref()
+                        .map(|id| include.contains(&id.to_lowercase()))
+                        .unwrap_or(false);
                 }
-
                 if let Some(exclude) = &option.exclude {
-                    return !exclude.contains(&modinfo.modid.clone().unwrap());
+                    return mod_info
+                        .modid
+                        .as_ref()
+                        .map(|id| !exclude.contains(&id.to_lowercase()))
+                        .unwrap_or(true);
                 }
-
                 true
             })
-            .collect::<Vec<(ModInfo, PathBuf)>>();
+            .collect();
+
         Ok(mods)
     }
 }
@@ -296,20 +346,17 @@ fn remove_trailing_comma(json: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::Bytes;
-    use std::io::Write;
-    use tokio::io::AsyncWriteExt;
 
     #[tokio::test]
     async fn save_file_creates_file_with_correct_content() {
         let file_manager = FileManager::new(false);
-        let file_name = "test_save_file.txt";
-        let content = Bytes::from("Hello, world!");
+        let file_name = PathBuf::from("test_save_file.txt");
+        let content = "Hello World!".as_bytes();
 
-        let result = file_manager.save_file(file_name, content.clone()).await;
+        let result = file_manager.save_file(&file_name, content.clone()).await;
         assert!(result.is_ok());
 
-        let read_content = file_manager.read_file(file_name).await.unwrap();
+        let read_content = file_manager.read_file(&file_name).await.unwrap();
         assert_eq!(read_content, content);
 
         std::fs::remove_file(file_name).unwrap();
@@ -318,21 +365,21 @@ mod tests {
     #[tokio::test]
     async fn read_file_returns_correct_content() {
         let file_manager = FileManager::new(false);
-        let file_name = "test_read_file.txt";
-        let content = Bytes::from("Hello, world!");
+        let file_name = PathBuf::from("test_read_file.txt");
+        let content = "Hello, World!".as_bytes();
 
-        std::fs::write(file_name, &content).unwrap();
-        let read_content = file_manager.read_file(file_name).await.unwrap();
+        std::fs::write(&file_name, &content).unwrap();
+        let read_content = file_manager.read_file(&file_name).await.unwrap();
         assert_eq!(read_content, content);
 
-        std::fs::remove_file(file_name).unwrap();
+        std::fs::remove_file(&file_name).unwrap();
     }
 
     #[tokio::test]
     async fn delete_file_removes_file() {
         let file_manager = FileManager::new(false);
         let file_name = &PathBuf::from("test_delete_file.txt");
-        let content = Bytes::from("Hello, world!");
+        let content = "Hello, World!".as_bytes();
 
         std::fs::write(file_name, &content).unwrap();
         let result = file_manager.delete_file(file_name).await;
@@ -346,7 +393,7 @@ mod tests {
     async fn file_exists_returns_true_for_existing_file() {
         let file_manager = FileManager::new(false);
         let file_name = "test_file_exists.txt";
-        let content = Bytes::from("Hello, world!");
+        let content = "Hello, World!".as_bytes();
 
         std::fs::write(file_name, &content).unwrap();
         let exists = file_manager.file_exists(file_name).await.unwrap();
