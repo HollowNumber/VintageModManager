@@ -8,6 +8,7 @@ use crate::utils::{
     ProgressBarWrapper, get_vintage_mods_dir,
 };
 use clap::Parser;
+use dialoguer::Input as Text;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -31,6 +32,8 @@ pub enum ModManagerError {
     File(#[from] FileError),
     #[error("Encoding Error: {0}")]
     Encoding(#[from] EncodingError),
+    #[error("Dialog Error: {0}")]
+    Dialog(#[from] dialoguer::Error),
 }
 
 pub struct ModManager {
@@ -121,7 +124,7 @@ impl ModManager {
         }
 
         if options.is_all_none() {
-            self.download_mod("").await?;
+            self.show_paginated_mods().await?;
         }
 
         Ok(())
@@ -246,6 +249,89 @@ impl ModManager {
         // Download and save new mod
         self.download_and_save_mod(name, &new_mod_path, &release)
             .await;
+    }
+
+    async fn show_paginated_mods(&self) -> Result<(), ModManagerError> {
+        let page_size = 50;
+        let mut current_filter = String::new();
+
+        // Initial fetch
+        let query = Query::new().with_order_by(OrderBy::Downloads).build();
+
+        let search_results = self.api.search_mods(query).await?;
+        let filtered_mods = search_results.mods;
+
+        while !filtered_mods.is_empty() {
+            // Apply filter if exists
+            let displayed_mods: Vec<_> = filtered_mods
+                .iter()
+                .filter(|m| {
+                    current_filter.is_empty()
+                        || m.name
+                            .to_lowercase()
+                            .contains(&current_filter.to_lowercase())
+                        || m.author
+                            .to_lowercase()
+                            .contains(&current_filter.to_lowercase())
+                })
+                .take(page_size)
+                .collect();
+
+            if displayed_mods.is_empty() {
+                println!("No mods found matching filter: {}", current_filter);
+                return Ok(());
+            }
+
+            // Add navigation options
+            let mut options: Vec<String> = displayed_mods
+                .iter()
+                .map(|m| {
+                    format!(
+                        "{} by {} ({} downloads)",
+                        m.name,
+                        m.author,
+                        m.downloads.unwrap_or(0)
+                    )
+                })
+                .collect();
+
+            options.push("--- Filter mods ---".into());
+            options.push("--- Exit ---".into());
+
+            if let Some(selection) =
+                Terminal::select("Select a mod (use / to search, ESC to exit)", &options)
+            {
+                if selection >= displayed_mods.len() {
+                    match selection - displayed_mods.len() {
+                        0 => {
+                            // Filter option selected
+                            print!("Enter search term: ");
+                            std::io::Write::flush(&mut std::io::stdout())?;
+                            // Clear the screen to remove previous input
+                            print!("\x1B[2J\x1B[1;1H");
+                            current_filter = Text::new()
+                                .with_initial_text("") // Reset initial text
+                                .interact()?;
+                            continue;
+                        }
+                        1 => break, // Exit option selected
+                        _ => continue,
+                    }
+                }
+
+                let selected_mod = &displayed_mods[selection];
+                let mod_info = self.fetch_mod_info(&selected_mod.modidstrs[0]).await?;
+
+                if Terminal::confirm(format!("Download mod: {}?", selected_mod.name)) {
+                    self.save_mod_file(&mod_info).await?;
+                    println!("Downloaded {}", selected_mod.name);
+                }
+            } else {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
     async fn delete_old_mod(&self, path: &PathBuf) -> Result<(), FileError> {
