@@ -1,4 +1,6 @@
-use crate::api::{ModApiResponse, ModInfo, OrderBy, Query, Release, VintageApiHandler};
+use crate::api::{
+    ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release, VintageApiHandler,
+};
 use crate::utils::cli::IsAllNone;
 use crate::utils::encoding::EncodingError;
 use crate::utils::files::FileError;
@@ -8,7 +10,6 @@ use crate::utils::{
     ProgressBarWrapper, get_vintage_mods_dir,
 };
 use clap::Parser;
-use dialoguer::Input as Text;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -41,6 +42,12 @@ pub struct ModManager {
     file_manager: FileManager,
     encoder: Encoder,
     logger: Logger,
+}
+
+enum SelectionResult {
+    Continue,
+    Break,
+    NoResults,
 }
 
 impl ModManager {
@@ -254,83 +261,125 @@ impl ModManager {
     async fn show_paginated_mods(&self) -> Result<(), ModManagerError> {
         let page_size = 50;
         let mut current_filter = String::new();
+        let mods = self.fetch_initial_mods().await?;
 
-        // Initial fetch
-        let query = Query::new().with_order_by(OrderBy::Downloads).build();
-
-        let search_results = self.api.search_mods(query).await?;
-        let filtered_mods = search_results.mods;
-
-        while !filtered_mods.is_empty() {
-            // Apply filter if exists
-            let displayed_mods: Vec<_> = filtered_mods
-                .iter()
-                .filter(|m| {
-                    current_filter.is_empty()
-                        || m.name
-                            .to_lowercase()
-                            .contains(&current_filter.to_lowercase())
-                        || m.author
-                            .to_lowercase()
-                            .contains(&current_filter.to_lowercase())
-                })
-                .take(page_size)
-                .collect();
-
-            if displayed_mods.is_empty() {
-                println!("No mods found matching filter: {}", current_filter);
-                return Ok(());
-            }
-
-            // Add navigation options
-            let mut options: Vec<String> = displayed_mods
-                .iter()
-                .map(|m| {
-                    format!(
-                        "{} by {} ({} downloads)",
-                        m.name,
-                        m.author,
-                        m.downloads.unwrap_or(0)
-                    )
-                })
-                .collect();
-
-            options.push("--- Filter mods ---".into());
-            options.push("--- Exit ---".into());
-
-            if let Some(selection) =
-                Terminal::select("Select a mod (use / to search, ESC to exit)", &options)
+        while !mods.is_empty() {
+            match self
+                .handle_mod_selection(&mods, &mut current_filter, page_size)
+                .await?
             {
-                if selection >= displayed_mods.len() {
-                    match selection - displayed_mods.len() {
-                        0 => {
-                            // Filter option selected
-                            print!("Enter search term: ");
-                            std::io::Write::flush(&mut std::io::stdout())?;
-                            // Clear the screen to remove previous input
-                            print!("\x1B[2J\x1B[1;1H");
-                            current_filter = Text::new()
-                                .with_initial_text("") // Reset initial text
-                                .interact()?;
-                            continue;
-                        }
-                        1 => break, // Exit option selected
-                        _ => continue,
-                    }
-                }
-
-                let selected_mod = &displayed_mods[selection];
-                let mod_info = self.fetch_mod_info(&selected_mod.modidstrs[0]).await?;
-
-                if Terminal::confirm(format!("Download mod: {}?", selected_mod.name)) {
-                    self.save_mod_file(&mod_info).await?;
-                    println!("Downloaded {}", selected_mod.name);
-                }
-            } else {
-                break;
+                SelectionResult::Continue => continue,
+                SelectionResult::Break => break,
+                SelectionResult::NoResults => return Ok(()),
             }
         }
 
+        Ok(())
+    }
+
+    async fn fetch_initial_mods(&self) -> Result<Vec<ModSearchResult>, ModManagerError> {
+        let query = Query::new().with_order_by(OrderBy::Downloads).build();
+        let search_results = self.api.search_mods(query).await?;
+        Ok(search_results.mods)
+    }
+
+    fn filter_mods<'a>(
+        &self, mods: &'a [ModSearchResult], filter: &str, page_size: usize,
+    ) -> Vec<&'a ModSearchResult> {
+        mods.iter()
+            .filter(|m| {
+                filter.is_empty()
+                    || m.name.to_lowercase().contains(&filter.to_lowercase())
+                    || m.author.to_lowercase().contains(&filter.to_lowercase())
+            })
+            .take(page_size)
+            .collect()
+    }
+
+    fn create_display_options(&self, mods: &[&ModSearchResult]) -> Vec<String> {
+        let mut options: Vec<String> = mods
+            .iter()
+            .map(|m| {
+                format!(
+                    "{} by {} ({} downloads)",
+                    m.name,
+                    m.author,
+                    m.downloads.unwrap_or(0)
+                )
+            })
+            .collect();
+
+        options.push("--- Filter mods ---".into());
+        options.push("--- Exit ---".into());
+        options
+    }
+
+    async fn handle_mod_selection(
+        &self, mods: &[ModSearchResult], current_filter: &mut String, page_size: usize,
+    ) -> Result<SelectionResult, ModManagerError> {
+        let displayed_mods = self.filter_mods(mods, current_filter, page_size);
+
+        if displayed_mods.is_empty() {
+            println!("No mods found matching filter: {}", current_filter);
+            return Ok(SelectionResult::NoResults);
+        }
+
+        let options = self.create_display_options(&displayed_mods);
+
+        match Terminal::select("Select a mod (use / to search, ESC to exit)", &options) {
+            Some(selection) if selection >= displayed_mods.len() => {
+                match selection - displayed_mods.len() {
+                    0 => {
+                        self.handle_navigation_selection(0, current_filter)?;
+                        Ok(SelectionResult::Continue)
+                    }
+                    1 => Ok(SelectionResult::Break), // Exit option
+                    _ => Ok(SelectionResult::Continue),
+                }
+            }
+            Some(selection) => {
+                self.handle_mod_download(displayed_mods[selection]).await?;
+                Ok(SelectionResult::Continue)
+            }
+            None => Ok(SelectionResult::Break),
+        }
+    }
+
+    fn handle_navigation_selection(
+        &self, nav_index: usize, current_filter: &mut String,
+    ) -> Result<(), ModManagerError> {
+        match nav_index {
+            0 => {
+                self.clear_screen()?;
+                print!("Filter for mod: ");
+                std::io::Write::flush(&mut std::io::stdout())?;
+                *current_filter = Terminal::input("");
+                Ok(())
+            }
+            1 => {
+                // Exit option - this will be handled by the caller
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    async fn handle_mod_download(
+        &self, selected_mod: &ModSearchResult,
+    ) -> Result<(), ModManagerError> {
+        let mod_info = self.fetch_mod_info(&selected_mod.modidstrs[0]).await?;
+
+        if Terminal::confirm(format!("Download mod: {}?", selected_mod.name)) {
+            self.save_mod_file(&mod_info).await?;
+            println!("Downloaded {}", selected_mod.name);
+        }
+
+        Ok(())
+    }
+
+    fn clear_screen(&self) -> Result<(), ModManagerError> {
+        print!("\x1B[2J\x1B[1;1H");
+        std::io::Write::flush(&mut std::io::stdout())?;
         Ok(())
     }
 

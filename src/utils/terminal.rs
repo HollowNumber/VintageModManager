@@ -58,6 +58,13 @@ impl Terminal {
             .unwrap_or(None)
     }
 
+    pub fn input(message: &str) -> String {
+        dialoguer::Input::with_theme(&ColorfulTheme::default())
+            .with_prompt(message)
+            .interact()
+            .unwrap()
+    }
+
     pub fn multi_select<T: Display>(message: &str, options: &[T]) -> Vec<usize> {
         dialoguer::MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt(message)
