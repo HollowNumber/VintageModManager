@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.6.3] 2025-02-25
+
+Accidentally removed a token field.
+
 ## [v0.6.2] 2025-02-25
 
 - Fixed a bug in the release action
