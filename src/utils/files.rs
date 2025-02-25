@@ -22,6 +22,8 @@ pub enum FileError {
     Zip(#[from] zip::result::ZipError),
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] std::str::Utf8Error),
+    #[error("File not found: {0}")]
+    FileNotFound(String),
 }
 
 /// Struct to manage file operations with logging.
@@ -101,12 +103,19 @@ impl FileManager {
     ///
     /// A `Result` containing the file content as `Bytes` or an error.
     pub async fn read_file(&self, path: &PathBuf) -> Result<Vec<u8>, FileError> {
-        self.validate_path(path).await?;
-        self.logger
-            .log_default(&format!("Reading file: {}", path.display()));
-        let mut file = fs::File::open(path).await?;
+        if !path.exists() {
+            return Err(FileError::FileNotFound(path.display().to_string()));
+        }
+
+        if !path.is_file() {
+            return Err(FileError::InvalidPath(
+                path.display().to_string().parse().unwrap(),
+            ));
+        }
+
+        let mut file = File::open(path)?;
         let mut contents = Vec::new();
-        file.read_to_end(&mut contents).await?;
+        file.read_to_end(&mut contents)?;
         Ok(contents)
     }
 
@@ -346,33 +355,48 @@ fn remove_trailing_comma(json: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn save_file_creates_file_with_correct_content() {
-        let file_manager = FileManager::new(false);
-        let file_name = PathBuf::from("test_save_file.txt");
-        let content = "Hello World!".as_bytes();
-
-        let result = file_manager.save_file(&file_name, content.clone()).await;
-        assert!(result.is_ok());
-
-        let read_content = file_manager.read_file(&file_name).await.unwrap();
-        assert_eq!(read_content, content);
-
-        std::fs::remove_file(file_name).unwrap();
-    }
+    use std::io::Write;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[tokio::test]
     async fn read_file_returns_correct_content() {
         let file_manager = FileManager::new(false);
-        let file_name = PathBuf::from("test_read_file.txt");
-        let content = "Hello, World!".as_bytes();
+        let test_content = b"test content";
+        let temp_dir = tempdir().unwrap();
+        let test_file_path = temp_dir.path().join("test_read_file.txt");
 
-        std::fs::write(&file_name, &content).unwrap();
-        let read_content = file_manager.read_file(&file_name).await.unwrap();
-        assert_eq!(read_content, content);
+        let mut file = fs::File::create(&test_file_path).await.unwrap();
 
-        std::fs::remove_file(&file_name).unwrap();
+        println!("test_file_path: {:?}", test_file_path);
+
+        file.write_all(test_content).await.unwrap();
+
+        let read_content = file_manager.read_file(&test_file_path).await.unwrap();
+        assert_eq!(read_content, test_content);
+    }
+
+    #[tokio::test]
+    async fn save_file_creates_file_with_correct_content() {
+        // Create a temporary directory for test files
+        let temp_dir = tempdir().unwrap();
+        let test_file_path = temp_dir.path().join("test_save_file.txt");
+        let test_content = b"test content";
+
+        // Create a test file manager
+        let file_manager = FileManager::new(false);
+
+        // Save the test content
+        file_manager
+            .save_file(&test_file_path, test_content)
+            .await
+            .unwrap();
+
+        // Verify file exists and has correct content
+        let read_content = std::fs::read(&test_file_path).unwrap();
+        assert_eq!(read_content, test_content);
+
+        // Cleanup happens automatically when temp_dir is dropped
     }
 
     #[tokio::test]
@@ -381,7 +405,7 @@ mod tests {
         let file_name = &PathBuf::from("test_delete_file.txt");
         let content = "Hello, World!".as_bytes();
 
-        std::fs::write(file_name, &content).unwrap();
+        std::fs::write(file_name, content).unwrap();
         let result = file_manager.delete_file(file_name).await;
         assert!(result.is_ok());
 
@@ -395,7 +419,7 @@ mod tests {
         let file_name = "test_file_exists.txt";
         let content = "Hello, World!".as_bytes();
 
-        std::fs::write(file_name, &content).unwrap();
+        std::fs::write(file_name, content).unwrap();
         let exists = file_manager.file_exists(file_name).await.unwrap();
         assert!(exists);
 

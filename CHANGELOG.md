@@ -1,5 +1,23 @@
 # Changelog
 
+## [v0.6.0] 2025-02-25
+
+### Changes
+
+- Added confirmation prompt before downloading mods in the `download` command
+
+### Additions
+
+- Added pagination support to mod browsing in the `download` command:
+  - New interactive prompt for browsing and selecting mods from moddb
+  - Shows mod details including name, author and downloads
+  - Added filtering capability while browsing mods
+  - Added proper exit handling
+  - Clean screen handling for better UX
+- Added interactivity to `export` command:
+  - New `--interactive` flag for selecting specific mods to export
+  - Multi-select interface for choosing mods
+
 ## [v0.5.4] - 2025-02-20
 
 ### Changes
