@@ -165,7 +165,7 @@ impl VintageApiHandler {
         let mut version_mappings = Vec::new();
 
         for (index, version) in versions.gameversions.iter().enumerate() {
-            version_mappings.push(VersionMapping::new(version.tagid, version.name.clone()));
+            version_mappings.push(VersionMapping::new(index as i64, version.name.clone()));
         }
 
         Ok(version_mappings)
