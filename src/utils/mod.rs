@@ -1,5 +1,5 @@
 mod cli;
-mod config;
+mod config_manager;
 mod encoding;
 mod files;
 mod logger;

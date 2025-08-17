@@ -1,7 +1,8 @@
 use crate::api::{
     ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release, VintageApiHandler,
 };
-use crate::utils::cli::IsAllNone;
+use crate::utils::cli::{ConfigCommands, IsAllNone};
+use crate::utils::config_manager::{ConfigError, ConfigManager};
 use crate::utils::encoding::EncodingError;
 use crate::utils::files::FileError;
 use crate::utils::terminal::Terminal;
@@ -35,6 +36,8 @@ pub enum ModManagerError {
     Encoding(#[from] EncodingError),
     #[error("Dialog Error: {0}")]
     Dialog(#[from] dialoguer::Error),
+    #[error("Config Error: {0}")]
+    Config(#[from] ConfigError), // Add this line
 }
 
 pub struct ModManager {
@@ -107,6 +110,56 @@ impl ModManager {
                         mod_,
                     })
                     .await?;
+            }
+
+            Some(Commands::Config(config_cmd)) => {
+                let mut config_manager = ConfigManager::new(verbose)?;
+
+                match config_cmd {
+                    ConfigCommands::SetPath { path } => {
+                        config_manager.set_game_path(path)?;
+                    }
+                    ConfigCommands::Show => {
+                        config_manager.show();
+                    }
+                    ConfigCommands::Init { force } => {
+                        config_manager.init(force)?;
+                    }
+                    ConfigCommands::UpdateVersions { verbose } => {
+                        config_manager
+                            .update_version_mappings(verbose.unwrap_or(false))
+                            .await?;
+                    }
+                    ConfigCommands::ListVersions => {
+                        config_manager.list_versions();
+                    }
+                    ConfigCommands::Reset { yes } => {
+                        config_manager.reset(yes)?;
+                    }
+                    ConfigCommands::Validate => {
+                        config_manager.validate()?;
+                    }
+                    ConfigCommands::SetGameVersion { version } => {
+                        // Implementation needed - add to ConfigManager
+                        println!("Setting game version preference to: {}", version);
+                        // You could implement this as a user preference override
+                        // For now, just show what the detected version is vs requested
+                        if let Some(detected) = config_manager.get_detected_game_version() {
+                            if detected == &version {
+                                println!("Matches detected version: {}", detected);
+                            } else {
+                                println!(
+                                    "Requested version {} differs from detected version {}",
+                                    version, detected
+                                );
+                            }
+                        } else {
+                            println!(
+                                "No version detected. Set game path first with 'config set-path'"
+                            );
+                        }
+                    }
+                }
             }
 
             _ => {}

@@ -1,4 +1,5 @@
 mod api;
+mod config;
 mod utils;
 
 use crate::utils::{ModManager, ModManagerError};

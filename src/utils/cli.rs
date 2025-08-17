@@ -1,10 +1,15 @@
 use clap::{ArgAction, Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(author = "Mikkel M.H Pedersen", version = "0.6.1", long_about = None)]
+#[command(
+    author = "Mikkel M.H Pedersen",
+    version = "0.6.1",
+    long_about = "A mod manager for the game Vintage Story.\nCreated by Mikkel M.H Pedersen.\nThis CLI tool helps you manage Vintage Story mods through three main commands:\n- download: Get mods from the official repository\n- export: Create shareable mod collections\n- update: Keep your mods up to date"
+)]
 pub struct Cli {
     #[clap(short, long, action=ArgAction::SetTrue)]
-    /// Enable verbose output
+    /// Enable detailed logging output for troubleshooting
     pub verbose: Option<bool>,
 
     #[command(subcommand)]
@@ -13,52 +18,117 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Imports mods from to the mod folder.
+    /// Download mods from the official Vintage Story repository
     Download {
         #[clap(long)]
-        /// The <mod string> to import, gotten from the export command.
+        /// Import mods using an encoded mod string (obtained from the export command)
         mod_string: Option<String>,
 
         #[clap(long, value_delimiter = ',')]
-        /// Mods to download, can be either a <mod id> or a mod name.
+        /// Download multiple mods by their IDs or names (comma-separated)
+        /// Example: --mods "worldedit,prospecting,bettertools"
         mods: Option<Vec<String>>,
 
-        #[clap(long, name = "mod")]
-        /// The <mod id> or <name> of the mod to download.
+        #[clap(long)]
+        /// Download a single mod by its ID or name
+        /// Example: --mod worldedit
         mod_: Option<String>,
     },
 
-    /// Exports mods from the mod folder to a shareable string.
+    /// Create shareable mod collections as encoded strings
+    ///
+    /// This command allows you to create encoded strings that can be shared with others to import specific mod collections.
+    ///
+    /// Default behavior is to export all mods.
     Export {
         #[clap(short, long)]
-        /// Exports the <mod ids> in the mod folder that are not in the <exclude> list.
+        /// List of mod IDs to exclude from the export (comma-separated)
+        /// Example: -e "worldedit,prospecting"
         exclude: Option<Vec<String>>,
 
         #[clap(short, long)]
-        /// Exports the specified <mod ids> in the mod folder
+        /// List of specific mod IDs to include in the export (comma-separated)
+        /// Example: -i "worldedit,prospecting"
         include: Option<Vec<String>>,
 
-        #[clap(short, long, name = "mod")]
-        /// Only exports the <mod id> specified
+        #[clap(short, long)]
+        /// Export only one specific mod by its ID
+        /// Example: -m worldedit
         mod_: Option<String>,
 
         #[clap(long, action=ArgAction::SetTrue)]
+        /// Select mods to export through an interactive menu
         interactive: Option<bool>,
     },
 
-    /// Updates mods in the mod folder.
+    /// Check for and install available mod updates
     Update {
         #[clap(short, long)]
-        /// Updates the <mod ids> in the mod folder that are not in the <exclude> list, separated by a comma
+        /// List of mod IDs to skip during update (comma-separated)
+        ///
+        /// Example: -e "worldedit,prospecting"
         exclude: Option<Vec<String>>,
 
         #[clap(short, long)]
-        /// Updates the specified <mod ids> in the mod folder, separated by a comma
+        /// List of specific mod IDs to update (comma-separated)
+        ///
+        /// Example: -i "worldedit,prospecting"
         include: Option<Vec<String>>,
 
-        #[clap(short, long, name = "mod")]
-        /// Only updates the <mod id> specified
+        #[clap(short, long)]
+        /// Update only one specific mod by its ID
+        ///
+        /// Example: -m worldedit
         mod_: Option<String>,
+    },
+
+    /// Manage configuration settigns
+    #[command(subcommand)]
+    Config(ConfigCommands),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommands {
+    /// Set the Vintage Story game installation path
+    SetPath {
+        /// Path to the Vintage Story installation directory
+        path: PathBuf,
+    },
+
+    /// Show current configuration
+    Show,
+
+    /// Initialize configuration file with default values
+    Init {
+        #[clap(long)]
+        /// Force overwrite existing config file
+        force: bool,
+    },
+
+    /// Update version mappings from the API
+    UpdateVersions {
+        #[clap(long, action=ArgAction::SetTrue)]
+        /// Show progress during update
+        verbose: Option<bool>,
+    },
+
+    /// List all available game versions
+    ListVersions,
+
+    /// Reset configuration to defaults
+    Reset {
+        #[clap(long)]
+        /// Confirm reset without prompting
+        yes: bool,
+    },
+
+    /// Validate current configuration
+    Validate,
+
+    /// Set the current game version for compatibility filtering
+    SetGameVersion {
+        /// Game version string (e.g., "1.15.3")
+        version: String,
     },
 }
 
