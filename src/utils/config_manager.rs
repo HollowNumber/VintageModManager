@@ -221,12 +221,8 @@ impl ConfigManager {
 
         let api = VintageApiHandler::new(verbose);
 
-        // Fetch the gameversions endpoint specifically
-        // You'll need to add this method to VintageApiHandler
-        let versions_response = self.fetch_game_versions(&api).await?;
-
-        // Parse the game versions from the API response
-        let version_mappings = self.parse_api_versions(&versions_response)?;
+        // Fetch version mappings using the new method
+        let version_mappings = api.fetch_game_versions().await?;
 
         self.config.update_version_mapping(version_mappings);
         self.save()?;

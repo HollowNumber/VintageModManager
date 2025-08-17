@@ -1,5 +1,7 @@
+use crate::api::releases::GameVersionsResponse;
 use crate::api::{ModApiResponse, ModInfo};
 use crate::api::{ModSearchResponse, Release};
+use crate::config::VersionMapping;
 use crate::utils::{LogLevel, Logger};
 use reqwest::Client;
 
@@ -150,6 +152,23 @@ impl VintageApiHandler {
             is_update_available,
             api_mod_info.mod_data.releases[0].clone(),
         ))
+    }
+
+    pub async fn fetch_game_versions(&self) -> Result<Vec<VersionMapping>, reqwest::Error> {
+        self.logger.log_default("Fetching game versions");
+
+        let url = format!("{}/api/gameversions", &self.api_url);
+        let resp = self.client.get(&url).send().await?;
+        let body = resp.text().await?;
+        let versions: GameVersionsResponse = serde_json::from_str(&body).unwrap();
+
+        let mut version_mappings = Vec::new();
+
+        for (index, version) in versions.gameversions.iter().enumerate() {
+            version_mappings.push(VersionMapping::new(version.tagid, version.name.clone()));
+        }
+
+        Ok(version_mappings)
     }
 }
 

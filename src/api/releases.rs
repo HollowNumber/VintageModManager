@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Releases {
-    pub status_code: String,
+pub struct GameVersionsResponse {
+    pub statuscode: String,
     pub gameversions: Vec<Version>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Version {
-    tagid: i64,
-    name: String,
-    color: String,
+    pub tagid: i64,
+    pub name: String,
+    pub color: String,
 }
