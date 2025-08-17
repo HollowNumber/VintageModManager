@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(
     author = "Mikkel M.H Pedersen",
-    version = "0.6.1",
+    version = "0.7.1",
     long_about = "A mod manager for the game Vintage Story.\nCreated by Mikkel M.H Pedersen.\nThis CLI tool helps you manage Vintage Story mods through three main commands:\n- download: Get mods from the official repository\n- export: Create shareable mod collections\n- update: Keep your mods up to date"
 )]
 pub struct Cli {

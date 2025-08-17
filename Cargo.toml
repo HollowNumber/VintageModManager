@@ -1,6 +1,6 @@
 [package]
 name = "VintageModManager"
-version = "0.6.1"
+version = "0.7.1"
 edition = "2024"
 authors = [
     "Mikkel M.H Pedersen <@mikkel.helding@gmail.com>"

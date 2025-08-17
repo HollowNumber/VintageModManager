@@ -275,13 +275,57 @@ impl ModManager {
         &self, mod_info: &ModInfo, name: &str, version: &str,
     ) -> Option<Release> {
         match self.api.check_for_mod_update(mod_info).await {
-            Ok((true, release)) => {
-                let new_version = release.modversion.as_deref().unwrap_or("Unknown");
-                println!(
-                    "Update available for mod: {} - Current version: {} - New version: {}",
-                    name, version, new_version
-                );
-                Some(release)
+            Ok((true, _latest_release)) => {
+                // Instead of using the latest release directly, get the full mod info
+                // and find the best compatible release
+                if let Ok(full_mod_info) =
+                    self.fetch_mod_info(&mod_info.modid.clone().unwrap()).await
+                {
+                    if let Some(compatible_release) =
+                        self.find_compatible_release(&full_mod_info.mod_data.releases)
+                    {
+                        // Check if the compatible release is actually newer than current version
+                        let current_version = mod_info.version.as_deref().unwrap_or("Unknown");
+                        let new_version = compatible_release
+                            .modversion
+                            .as_deref()
+                            .unwrap_or("Unknown");
+
+                        if current_version != new_version {
+                            println!(
+                                "Update available for mod: {} - Current version: {} - New compatible version: {}",
+                                name, current_version, new_version
+                            );
+
+                            // Show version compatibility info
+                            if let Some(game_version) = self.get_current_game_version() {
+                                if compatible_release.tags.contains(&game_version) {
+                                    println!(
+                                        "✅ New version is compatible with game version {}",
+                                        game_version
+                                    );
+                                } else {
+                                    println!(
+                                        "Using fallback version (no version found compatible with game version {})",
+                                        game_version
+                                    );
+                                }
+                            }
+
+                            return Some(compatible_release.clone());
+                        } else {
+                            println!(
+                                "Mod {} is already at the latest compatible version: {}",
+                                name, current_version
+                            );
+                            return None;
+                        }
+                    } else {
+                        println!("No compatible releases found for mod: {}", name);
+                        return None;
+                    }
+                }
+                None
             }
             Ok((false, _)) => None,
             Err(e) => {
@@ -331,8 +375,20 @@ impl ModManager {
     }
 
     async fn fetch_initial_mods(&self) -> Result<Vec<ModSearchResult>, ModManagerError> {
-        let query = Query::new().with_order_by(OrderBy::Downloads).build();
-        let search_results = self.api.search_mods(query).await?;
+        let mut query = Query::new().with_order_by(OrderBy::Downloads);
+
+        // Add game version filtering if available
+        if let Some(version_tag) = self.get_current_game_version_tag_id() {
+            // Convert i64 to u16 for the query (assuming they fit in the positive range)
+            if let Ok(tag_u16) = u16::try_from(version_tag.abs()) {
+                query = query.with_game_version(tag_u16);
+                if let Some(version) = self.get_current_game_version() {
+                    println!("🎯 Filtering results for game version: {}", version);
+                }
+            }
+        }
+
+        let search_results = self.api.search_mods(query.build()).await?;
         Ok(search_results.mods)
     }
 
@@ -553,7 +609,12 @@ impl ModManager {
 
     async fn save_mod_file(&self, mod_info: &ModApiResponse) -> Result<(), ModManagerError> {
         let vintage_mods_dir = get_vintage_mods_dir()?;
-        let release = &mod_info.mod_data.releases[0];
+
+        // Find the best compatible release instead of just using the first one
+        let release = self
+            .find_compatible_release(&mod_info.mod_data.releases)
+            .ok_or_else(|| ModManagerError::NoReleases)?;
+
         let mod_path = vintage_mods_dir.join(release.filename.clone().unwrap());
         let mod_bytes = self
             .api
@@ -561,6 +622,63 @@ impl ModManager {
             .await?;
 
         self.file_manager.save_file(&mod_path, &mod_bytes).await?;
+
+        // Log which version was downloaded
+        if let Some(version) = &release.modversion {
+            println!("Downloaded {} version {}", mod_info.mod_data.name, version);
+
+            if let Some(current_version) = self.get_current_game_version() {
+                if !release.tags.contains(&current_version) {
+                    println!(
+                        "Note: This mod version may not be fully compatible with your game version {}",
+                        current_version
+                    );
+                }
+            }
+        }
+
         Ok(())
+    }
+
+    /// Get the current game version tag ID from config
+    fn get_current_game_version_tag_id(&self) -> Option<i64> {
+        ConfigManager::new(false)
+            .ok()
+            .and_then(|config_manager| config_manager.get_detected_version_tag_id())
+    }
+
+    /// Get the current game version string from config
+    fn get_current_game_version(&self) -> Option<String> {
+        ConfigManager::new(false).ok().and_then(|config_manager| {
+            config_manager
+                .get_detected_game_version()
+                .map(|s| s.clone())
+        })
+    }
+
+    /// Check if a release is compatible with the current game version
+    fn is_release_compatible(&self, release: &Release) -> bool {
+        // Get the current game version string
+        let Some(current_version) = self.get_current_game_version() else {
+            // If no version filtering is configured, allow all releases
+            return true;
+        };
+
+        // Check if the release tags contain the current game version
+        release.tags.iter().any(|tag| tag == &current_version)
+    }
+
+    /// Find the best compatible release for the current game version
+    fn find_compatible_release<'a>(&self, releases: &'a [Release]) -> Option<&'a Release> {
+        // First try to find a release compatible with current version
+        if let Some(compatible_release) = releases
+            .iter()
+            .find(|release| self.is_release_compatible(release))
+        {
+            return Some(compatible_release);
+        }
+
+        // Fallback to the first release if no compatible version found
+        releases.first()
     }
 }
