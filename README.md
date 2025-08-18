@@ -108,7 +108,7 @@ VintageModManager export
 To import mods from a shareable string:
 
 ```sh
-VintageModManager import <mod_string>
+VintageModManager download <mod_string>
 ```
 
 Where `<mod_string>` is the string you received from the export command.
