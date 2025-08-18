@@ -140,8 +140,6 @@ impl Config {
         }
     }
 
-    // ... rest of the existing methods remain the same ...
-
     /// Loads configuration from a TOML file.
     pub fn load_from_file(file_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let contents = fs::read_to_string(file_path)?;

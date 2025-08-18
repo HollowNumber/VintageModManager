@@ -1,5 +1,6 @@
 use crate::api::{
-    ApiError, ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release, VintageApiHandler,
+    ClientError, ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release,
+    VintageApiHandler,
 };
 use crate::utils::cli::{ConfigCommands, IsAllNone};
 use crate::utils::config_manager::{ConfigError, ConfigManager};
@@ -39,7 +40,7 @@ pub enum ModManagerError {
     #[error("Config Error: {0}")]
     Config(#[from] ConfigError), // Add this line
     #[error("Api Error: {0}")]
-    ApiError(#[from] ApiError),
+    ApiError(#[from] ClientError),
 }
 
 pub struct ModManager {

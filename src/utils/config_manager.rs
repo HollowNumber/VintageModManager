@@ -49,7 +49,7 @@ impl ConfigManager {
         if config.get_game_path().is_some() && config.get_detected_game_version().is_none() {
             if let Err(e) = config.detect_game_version() {
                 // Log but don't fail - version detection is optional
-                eprintln!("Warning: Could not detect game version: {}", e);
+                eprintln!("Warning: Could not detect game version: {e}");
             }
         }
 
@@ -142,12 +142,9 @@ impl ConfigManager {
             PathBuf::from("/Applications/Vintage Story.app"),
         ];
 
-        for path in possible_paths {
-            if path.exists() && self.validate_game_path(&path) {
-                return Some(path);
-            }
-        }
-        None
+        possible_paths
+            .into_iter()
+            .find(|path| path.exists() && self.validate_game_path(path))
     }
 
     /// Set game installation path and auto-detect version
@@ -172,15 +169,14 @@ impl ConfigManager {
         match self.config.detect_game_version() {
             Ok(Some(version)) => {
                 println!("Game path set to: {}", path.display());
-                println!("Detected game version: {}", version);
+                println!("Detected game version: {version}");
 
                 // Check if we have a mapping for this version
                 if self.config.is_detected_version_mapped() {
                     println!("Version mapping available");
                 } else {
                     println!(
-                        "No version mapping for {}. Run 'config update-versions' to fetch mappings.",
-                        version
+                        "No version mapping for {version}. Run 'config update-versions' to fetch mappings."
                     );
                 }
             }
@@ -190,7 +186,7 @@ impl ConfigManager {
             }
             Err(e) => {
                 println!("Game path set to: {}", path.display());
-                println!("Error detecting game version: {}", e);
+                println!("Error detecting game version: {e}");
             }
         }
 
@@ -201,12 +197,12 @@ impl ConfigManager {
     /// Validate that a path contains a Vintage Story installation
     fn validate_game_path(&self, path: &Path) -> bool {
         // Look for key Vintage Story files/directories
-        let indicators = vec![
+        let indicators = [
             "assets",
             "Lib",
             "VintageStory.exe", // Windows
             "VintageStory",     // Linux
-            "Vintagestory.app", // macOS (alternative)
+            "Vintagestory.app",
         ];
 
         indicators
@@ -235,9 +231,9 @@ impl ConfigManager {
         // Check if our detected version now has a mapping
         if let Some(version) = self.config.get_detected_game_version() {
             if self.config.is_detected_version_mapped() {
-                println!("Mapping found for detected version: {}", version);
+                println!("Mapping found for detected version: {version}");
             } else {
-                println!("No mapping found for detected version: {}", version);
+                println!("No mapping found for detected version: {version}");
             }
         }
 
@@ -245,11 +241,11 @@ impl ConfigManager {
     }
 
     /// Fetch game versions from API
-    async fn fetch_game_versions(&self, api: &VintageApiHandler) -> Result<String, ConfigError> {
-        // This should fetch the gameversions endpoint specifically
-        // For now, using the existing fetch_mods as a placeholder
+    async fn fetch_game_versions(
+        &self, api: &VintageApiHandler,
+    ) -> Result<Vec<VersionMapping>, ConfigError> {
         // You might need to add a specific method to VintageApiHandler for this
-        let response = api.fetch_mods().await?;
+        let response = api.fetch_game_versions().await?;
         Ok(response)
     }
 
@@ -295,10 +291,10 @@ impl ConfigManager {
             println!("Game path: {}", game_path.display());
 
             if let Some(version) = self.config.get_detected_game_version() {
-                println!("Detected version: {}", version);
+                println!("Detected version: {version}");
 
                 if let Some(tag_id) = self.config.get_detected_version_tag_id() {
-                    println!("Version tag ID: {}", tag_id);
+                    println!("Version tag ID: {tag_id}");
                 } else {
                     println!("Version tag ID: No mapping found");
                 }
@@ -326,7 +322,7 @@ impl ConfigManager {
                 } else {
                     ""
                 };
-                println!("  - {}{}", version, indicator);
+                println!("  - {version}{indicator}");
             }
             if versions.len() > 10 {
                 println!("  ... and {} more", versions.len() - 10);
@@ -353,7 +349,7 @@ impl ConfigManager {
                 } else {
                     ""
                 };
-                println!("  {} (tag: {}){}", version, tag_id, indicator);
+                println!("  {version} (tag: {tag_id}){indicator}");
             }
         }
     }
@@ -362,11 +358,11 @@ impl ConfigManager {
     pub fn refresh_detected_version(&mut self) -> Result<(), ConfigError> {
         match self.config.detect_game_version() {
             Ok(Some(version)) => {
-                println!("Detected game version: {}", version);
+                println!("Detected game version: {version}");
                 if self.config.is_detected_version_mapped() {
                     println!("Version mapping available");
                 } else {
-                    println!("⚠️  No version mapping available for this version");
+                    println!("No version mapping available for this version");
                 }
                 self.save()?;
                 Ok(())
@@ -376,8 +372,7 @@ impl ConfigManager {
                 Ok(())
             }
             Err(e) => Err(ConfigError::NotFound(format!(
-                "Error detecting version: {}",
-                e
+                "Error detecting version: {e}"
             ))),
         }
     }
@@ -410,7 +405,7 @@ impl ConfigManager {
 
                 // Check version detection
                 if let Some(version) = self.config.get_detected_game_version() {
-                    println!("Game version detected: {}", version);
+                    println!("Game version detected: {version}");
 
                     if self.config.is_detected_version_mapped() {
                         println!("Version mapping available");

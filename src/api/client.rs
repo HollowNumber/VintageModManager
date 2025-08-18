@@ -10,7 +10,7 @@ use thiserror::Error;
 const VINTAGE_STORY_URL: &str = "https://mods.vintagestory.at";
 
 #[derive(Error, Debug)]
-pub enum ApiError {
+pub enum ClientError {
     #[error("HTTP request failed: {0}")]
     Request(#[from] reqwest::Error),
     #[error("JSON parsing failed: {0}")]
@@ -61,7 +61,7 @@ impl VintageApiHandler {
     /// # Returns
     ///
     /// A `Result` containing the mod data as a `String` or an error.
-    pub async fn get_mod<T>(&self, identifier: T) -> Result<ModApiResponse, ApiError>
+    pub async fn get_mod<T>(&self, identifier: T) -> Result<ModApiResponse, ClientError>
     where
         T: Display + ToString,
     {
@@ -72,7 +72,7 @@ impl VintageApiHandler {
         Self::parse_to_api_response(identifier, &body)
     }
 
-    fn parse_to_api_response<T>(identifier: T, body: &String) -> Result<ModApiResponse, ApiError>
+    fn parse_to_api_response<T>(identifier: T, body: &String) -> Result<ModApiResponse, ClientError>
     where
         T: ToString,
     {
@@ -83,13 +83,13 @@ impl VintageApiHandler {
                 if let Ok(error_response) = serde_json::from_str::<serde_json::Value>(body) {
                     if let Some(status_code) = error_response.get("statuscode") {
                         if status_code == 404 {
-                            return Err(ApiError::ModNotFound(identifier.to_string()));
+                            return Err(ClientError::ModNotFound(identifier.to_string()));
                         }
                     }
                 }
 
                 // If it's neither a valid response nor a 404, return parsing error
-                Err(ApiError::Json(
+                Err(ClientError::Json(
                     serde_json::from_str::<ModApiResponse>(&body).unwrap_err(),
                 ))
             }
@@ -117,7 +117,7 @@ impl VintageApiHandler {
     /// # Returns
     ///
     /// A `Result` containing the search results as a `String` or an error.
-    pub async fn search_mods(&self, query: String) -> Result<ModSearchResponse, reqwest::Error> {
+    pub async fn search_mods(&self, query: String) -> Result<ModSearchResponse, ClientError> {
         let url = format!("{}/api/mods?{}", &self.api_url, query);
         self.logger.log(LogLevel::Info, &url);
         let resp = self.client.get(&url).send().await?;
@@ -134,14 +134,14 @@ impl VintageApiHandler {
     /// # Returns
     ///
     /// A `Result` containing the file data as `Vector<u8>` or an error.
-    pub async fn fetch_file_stream(&self, file_path: String) -> Result<Vec<u8>, reqwest::Error> {
+    pub async fn fetch_file_stream(&self, file_path: String) -> Result<Vec<u8>, ClientError> {
         let url = format!("{}/{}", &self.api_url, file_path);
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
         Ok(bytes.to_vec())
     }
 
-    pub async fn fetch_file_stream_from_url(&self, url: String) -> Result<Vec<u8>, reqwest::Error> {
+    pub async fn fetch_file_stream_from_url(&self, url: String) -> Result<Vec<u8>, ClientError> {
         let resp = self.client.get(&url).send().await?;
         let bytes = resp.bytes().await?;
         Ok(bytes.to_vec())
@@ -156,7 +156,7 @@ impl VintageApiHandler {
     /// A tuple containing a boolean indicating if an update is available and a string with the version.
     pub async fn check_for_mod_update(
         &self, mod_info: &ModInfo,
-    ) -> Result<(bool, Release), ApiError> {
+    ) -> Result<(bool, Release), ClientError> {
         let mod_id = mod_info.modid.clone().expect("Mod id not found");
         self.logger
             .log_default(&format!("Checking for updates for mod: {}", mod_id));
