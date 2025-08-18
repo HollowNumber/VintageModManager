@@ -4,8 +4,22 @@ use crate::api::{ModSearchResponse, Release};
 use crate::config::VersionMapping;
 use crate::utils::{LogLevel, Logger};
 use reqwest::Client;
+use std::fmt::Display;
+use thiserror::Error;
 
-const VINTAGE_STORY_URL: &str = "http://mods.vintagestory.at";
+const VINTAGE_STORY_URL: &str = "https://mods.vintagestory.at";
+
+#[derive(Error, Debug)]
+pub enum ApiError {
+    #[error("HTTP request failed: {0}")]
+    Request(#[from] reqwest::Error),
+    #[error("JSON parsing failed: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Mod not found: {0}")]
+    ModNotFound(String),
+    #[error("API returned error status: {status}")]
+    ApiError { status: u16 },
+}
 
 /// Struct to handle interactions with the Vintage Story API.
 pub struct VintageApiHandler {
@@ -47,28 +61,39 @@ impl VintageApiHandler {
     /// # Returns
     ///
     /// A `Result` containing the mod data as a `String` or an error.
-    pub async fn get_mod_from_id(&self, id: u16) -> Result<String, reqwest::Error> {
-        let url = format!("{}/api/mod/{}", &self.api_url, id);
+    pub async fn get_mod<T>(&self, identifier: T) -> Result<ModApiResponse, ApiError>
+    where
+        T: Display + ToString,
+    {
+        let url = format!("{}/api/mod/{}", &self.api_url, identifier);
         let resp = self.client.get(&url).send().await?;
         let body = resp.text().await?;
-        Ok(body)
+
+        Self::parse_to_api_response(identifier, &body)
     }
 
-    /// Fetches a mod by its name.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the mod to fetch.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the mod data as a `String` or an error.
-    ///
-    pub async fn get_mod_from_name(&self, name: &str) -> Result<String, reqwest::Error> {
-        let url = format!("{}/api/mod/{}", &self.api_url, name);
-        let resp = self.client.get(&url).send().await?;
-        let body = resp.text().await?;
-        Ok(body)
+    fn parse_to_api_response<T>(identifier: T, body: &String) -> Result<ModApiResponse, ApiError>
+    where
+        T: ToString,
+    {
+        match serde_json::from_str::<ModApiResponse>(body) {
+            Ok(mod_res) => Ok(mod_res),
+            Err(_) => {
+                // If that fails, check if it's a 404 error response
+                if let Ok(error_response) = serde_json::from_str::<serde_json::Value>(body) {
+                    if let Some(status_code) = error_response.get("statuscode") {
+                        if status_code == 404 {
+                            return Err(ApiError::ModNotFound(identifier.to_string()));
+                        }
+                    }
+                }
+
+                // If it's neither a valid response nor a 404, return parsing error
+                Err(ApiError::Json(
+                    serde_json::from_str::<ModApiResponse>(&body).unwrap_err(),
+                ))
+            }
+        }
     }
 
     /// Fetches all mods.
@@ -131,27 +156,20 @@ impl VintageApiHandler {
     /// A tuple containing a boolean indicating if an update is available and a string with the version.
     pub async fn check_for_mod_update(
         &self, mod_info: &ModInfo,
-    ) -> Result<(bool, Release), reqwest::Error> {
+    ) -> Result<(bool, Release), ApiError> {
         let mod_id = mod_info.modid.clone().expect("Mod id not found");
         self.logger
             .log_default(&format!("Checking for updates for mod: {}", mod_id));
-        let api_mod = self.get_mod_from_name(&mod_id).await?;
-        let api_mod_info: ModApiResponse = serde_json::from_str(&api_mod).unwrap();
+        let api_mod = self.get_mod(&mod_id).await?;
         self.logger.log_default(&format!(
             "Mod info version: {:?} -- API version: {:?}",
-            mod_info.version, api_mod_info.mod_data.releases[0].modversion
+            mod_info.version, api_mod.mod_data.releases[0].modversion
         ));
 
         let is_update_available = mod_info.version.clone().expect("Version not found")
-            != api_mod_info.mod_data.releases[0]
-                .modversion
-                .clone()
-                .unwrap();
+            != api_mod.mod_data.releases[0].modversion.clone().unwrap();
 
-        Ok((
-            is_update_available,
-            api_mod_info.mod_data.releases[0].clone(),
-        ))
+        Ok((is_update_available, api_mod.mod_data.releases[0].clone()))
     }
 
     pub async fn fetch_game_versions(&self) -> Result<Vec<VersionMapping>, reqwest::Error> {
@@ -180,15 +198,17 @@ mod tests {
     #[tokio::test]
     async fn test_get_mod_from_id() {
         let api = VintageApiHandler::new(false);
-        let mod_data = api.get_mod_from_id(3351).await.unwrap();
-        assert!(mod_data.contains("Crude Arrows"));
+        let mod_data = api.get_mod(3351).await.unwrap();
+        todo!("Fix this");
+        // assert!(mod_data.contains("Crude Arrows"));
     }
 
     #[tokio::test]
     async fn test_get_mod_from_name() {
         let api = VintageApiHandler::new(false);
-        let mod_data = api.get_mod_from_name("crudetoflintarrow").await.unwrap();
-        assert!(mod_data.contains("Crude Arrows"));
+        let mod_data = api.get_mod("crudetoflintarrow").await.unwrap();
+        todo!("Fix this");
+        //assert!(mod_data.contains("Crude Arrows"));
     }
 
     #[tokio::test]

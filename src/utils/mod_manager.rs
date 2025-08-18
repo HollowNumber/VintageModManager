@@ -1,5 +1,5 @@
 use crate::api::{
-    ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release, VintageApiHandler,
+    ApiError, ModApiResponse, ModInfo, ModSearchResult, OrderBy, Query, Release, VintageApiHandler,
 };
 use crate::utils::cli::{ConfigCommands, IsAllNone};
 use crate::utils::config_manager::{ConfigError, ConfigManager};
@@ -38,6 +38,8 @@ pub enum ModManagerError {
     Dialog(#[from] dialoguer::Error),
     #[error("Config Error: {0}")]
     Config(#[from] ConfigError), // Add this line
+    #[error("Api Error: {0}")]
+    ApiError(#[from] ApiError),
 }
 
 pub struct ModManager {
@@ -141,16 +143,15 @@ impl ModManager {
                     }
                     ConfigCommands::SetGameVersion { version } => {
                         // Implementation needed - add to ConfigManager
-                        println!("Setting game version preference to: {}", version);
+                        println!("Setting game version preference to: {version}");
                         // You could implement this as a user preference override
                         // For now, just show what the detected version is vs requested
                         if let Some(detected) = config_manager.get_detected_game_version() {
                             if detected == &version {
-                                println!("Matches detected version: {}", detected);
+                                println!("Matches detected version: {detected}");
                             } else {
                                 println!(
-                                    "Requested version {} differs from detected version {}",
-                                    version, detected
+                                    "Requested version {version} differs from detected version {detected}"
                                 );
                             }
                         } else {
@@ -215,7 +216,7 @@ impl ModManager {
 
         self.logger
             .log_default(&format!("Exported {} mods", selected_mods.len()));
-        println!("{}", encoded);
+        println!("{encoded}");
         Ok(())
     }
 
@@ -225,7 +226,7 @@ impl ModManager {
         mods.iter()
             .map(|(mod_info, _)| {
                 self.logger
-                    .log_default(&format!("Creating encoder data for: {:?}", mod_info));
+                    .log_default(&format!("Creating encoder data for: {mod_info:?}"));
                 let mod_id = mod_info
                     .modid
                     .as_ref()
@@ -264,73 +265,58 @@ impl ModManager {
                 self.handle_mod_update(name, version, path, mods_dir, release)
                     .await
             }
-            None => println!(
-                "No update available for mod: {} - Current version: {}",
-                name, version
-            ),
+            None => println!("No update available for mod: {name} - Current version: {version}"),
         }
     }
 
     async fn check_and_get_update(
         &self, mod_info: &ModInfo, name: &str, version: &str,
     ) -> Option<Release> {
+        // Handle the main result cases first
         match self.api.check_for_mod_update(mod_info).await {
-            Ok((true, _latest_release)) => {
-                // Instead of using the latest release directly, get the full mod info
-                // and find the best compatible release
-                if let Ok(full_mod_info) =
-                    self.fetch_mod_info(&mod_info.modid.clone().unwrap()).await
-                {
-                    if let Some(compatible_release) =
-                        self.find_compatible_release(&full_mod_info.mod_data.releases)
-                    {
-                        // Check if the compatible release is actually newer than current version
-                        let current_version = mod_info.version.as_deref().unwrap_or("Unknown");
-                        let new_version = compatible_release
-                            .modversion
-                            .as_deref()
-                            .unwrap_or("Unknown");
-
-                        if current_version != new_version {
-                            println!(
-                                "Update available for mod: {} - Current version: {} - New compatible version: {}",
-                                name, current_version, new_version
-                            );
-
-                            // Show version compatibility info
-                            if let Some(game_version) = self.get_current_game_version() {
-                                if compatible_release.tags.contains(&game_version) {
-                                    println!(
-                                        "✅ New version is compatible with game version {}",
-                                        game_version
-                                    );
-                                } else {
-                                    println!(
-                                        "Using fallback version (no version found compatible with game version {})",
-                                        game_version
-                                    );
-                                }
-                            }
-
-                            return Some(compatible_release.clone());
-                        } else {
-                            println!(
-                                "Mod {} is already at the latest compatible version: {}",
-                                name, current_version
-                            );
-                            return None;
-                        }
-                    } else {
-                        println!("No compatible releases found for mod: {}", name);
-                        return None;
-                    }
-                }
-                None
-            }
-            Ok((false, _)) => None,
+            Ok((false, _)) => return None,
+            Ok(result) => result,
             Err(e) => {
-                eprintln!("Failed to check updates for {}: {}", name, e);
-                None
+                eprintln!("Failed to check updates for {name}: {e}");
+                return None;
+            }
+        };
+
+        // Early return pattern for the rest
+        let mod_id = mod_info.modid.as_ref()?;
+        let full_mod_info = self.fetch_mod_info(mod_id).await.ok()?;
+        let compatible_release = self.find_compatible_release(&full_mod_info.mod_data.releases)?;
+
+        // Simple version check
+        let current_version = mod_info.version.as_deref().unwrap_or("Unknown");
+        let new_version = compatible_release
+            .modversion
+            .as_deref()
+            .unwrap_or("Unknown");
+
+        if current_version == new_version {
+            println!("Mod {name} is already at the latest compatible version: {current_version}");
+            return None;
+        }
+
+        // Print update info and return
+        self.print_update_info(name, current_version, new_version, compatible_release);
+        Some(compatible_release.clone())
+    }
+
+    fn print_update_info(&self, name: &str, current: &str, new: &str, release: &Release) {
+        println!(
+            "Update available for mod: {name} - Current version: {current} - New compatible version: {new}"
+        );
+
+        // Show version compatibility info
+        if let Some(game_version) = self.get_current_game_version() {
+            if release.tags.contains(&game_version) {
+                println!("New version is compatible with game version {game_version}");
+            } else {
+                println!(
+                    "Using fallback version (no version found compatible with game version {game_version})"
+                );
             }
         }
     }
@@ -340,7 +326,7 @@ impl ModManager {
     ) {
         // Delete old mod
         if let Err(e) = self.delete_old_mod(&path).await {
-            eprintln!("Failed to delete old mod: {}", e);
+            eprintln!("Failed to delete old mod: {e}");
             return;
         }
 
@@ -383,7 +369,7 @@ impl ModManager {
             if let Ok(tag_u16) = u16::try_from(version_tag.abs()) {
                 query = query.with_game_version(tag_u16);
                 if let Some(version) = self.get_current_game_version() {
-                    println!("🎯 Filtering results for game version: {}", version);
+                    println!("Filtering results for game version: version {version}");
                 }
             }
         }
@@ -429,7 +415,7 @@ impl ModManager {
         let displayed_mods = self.filter_mods(mods, current_filter, page_size);
 
         if displayed_mods.is_empty() {
-            println!("No mods found matching filter: {}", current_filter);
+            println!("No mods found matching filter: {current_filter}");
             return Ok(SelectionResult::NoResults);
         }
 
@@ -501,7 +487,7 @@ impl ModManager {
         match &release.filename {
             Some(filename) => Some(mods_dir.join(filename)),
             None => {
-                eprintln!("Missing filename for mod: {}", name);
+                eprintln!("Missing filename for mod: {name}");
                 None
             }
         }
@@ -512,18 +498,18 @@ impl ModManager {
             Some(url) => match self.api.fetch_file_stream_from_url(url.clone()).await {
                 Ok(bytes) => bytes,
                 Err(e) => {
-                    eprintln!("Failed to download mod {}: {}", name, e);
+                    eprintln!("Failed to download mod {name}: {e}");
                     return;
                 }
             },
             None => {
-                eprintln!("Missing download URL for mod: {}", name);
+                eprintln!("Missing download URL for mod: {name}");
                 return;
             }
         };
 
         if let Err(e) = self.file_manager.save_file(new_mod_path, &mod_bytes).await {
-            eprintln!("Failed to save new mod {}: {}", name, e);
+            eprintln!("Failed to save new mod {name}: {e}");
         }
     }
 
@@ -555,7 +541,7 @@ impl ModManager {
             .with_order_by(OrderBy::Downloads)
             .build();
         self.logger
-            .log_default(&format!("Searching for mods: {:?}", mods));
+            .log_default(&format!("Searching for mods: {mods:?}"));
 
         let query_results = self.api.search_mods(query).await?;
         self.logger
@@ -601,9 +587,8 @@ impl ModManager {
 
     async fn fetch_mod_info(&self, mod_id: &String) -> Result<ModApiResponse, ModManagerError> {
         self.logger
-            .log_default(&format!("Fetching mod info: {}", mod_id));
-        let mod_info = self.api.get_mod_from_name(mod_id).await?;
-        let mod_info: ModApiResponse = serde_json::from_str(&mod_info)?;
+            .log_default(&format!("Fetching mod info: {mod_id}"));
+        let mod_info = self.api.get_mod(mod_id).await?;
         Ok(mod_info)
     }
 
@@ -630,8 +615,7 @@ impl ModManager {
             if let Some(current_version) = self.get_current_game_version() {
                 if !release.tags.contains(&current_version) {
                     println!(
-                        "Note: This mod version may not be fully compatible with your game version {}",
-                        current_version
+                        "Note: This mod version may not be fully compatible with your game version {current_version}"
                     );
                 }
             }
@@ -649,11 +633,9 @@ impl ModManager {
 
     /// Get the current game version string from config
     fn get_current_game_version(&self) -> Option<String> {
-        ConfigManager::new(false).ok().and_then(|config_manager| {
-            config_manager
-                .get_detected_game_version()
-                .map(|s| s.clone())
-        })
+        ConfigManager::new(false)
+            .ok()
+            .and_then(|config_manager| config_manager.get_detected_game_version().cloned())
     }
 
     /// Check if a release is compatible with the current game version
