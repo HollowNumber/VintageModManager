@@ -173,8 +173,8 @@ impl Query {
     /// assert_eq!(query, "text=example");
     /// ```
     ///
-    pub fn with_text(mut self, text: &Vec<String>) -> Self {
-        self.text = Some(text.clone());
+    pub fn with_text(mut self, text: &[String]) -> Self {
+        self.text = Some(text.to_owned());
         self
     }
 
@@ -248,28 +248,28 @@ impl Query {
 
         if !self.tag_ids.is_empty() {
             for tag_id in &self.tag_ids {
-                query_string.push_str(&format!("tagids[]={}&", tag_id));
+                query_string.push_str(&format!("tagids[]={tag_id}&"));
             }
         }
 
         if let Some(game_version) = self.game_version {
-            query_string.push_str(&format!("gameversion={}&", game_version));
+            query_string.push_str(&format!("gameversion={game_version}&"));
         }
 
         if !self.game_versions.is_empty() {
             for game_version in &self.game_versions {
-                query_string.push_str(&format!("gameversions[]={}&", game_version));
+                query_string.push_str(&format!("gameversions[]={game_version}&"));
             }
         }
 
         if let Some(author) = self.author {
-            query_string.push_str(&format!("author={}&", author));
+            query_string.push_str(&format!("author={author}&"));
         }
 
         if let Some(ref text) = self.text {
             let search_terms = text.join("+");
             if !search_terms.is_empty() {
-                query_string.push_str(&format!("text={}&", search_terms));
+                query_string.push_str(&format!("text={search_terms}&"));
             }
         }
 
@@ -282,7 +282,7 @@ impl Query {
                 OrderBy::Comments => "comments",
                 OrderBy::TrendingPoints => "trendingpoints",
             };
-            query_string.push_str(&format!("orderby={}&", order_by_str));
+            query_string.push_str(&format!("orderby={order_by_str}&"));
         }
 
         if let Some(ref order_direction) = self.order_direction {
@@ -290,7 +290,7 @@ impl Query {
                 OrderDirection::Desc => "desc",
                 OrderDirection::Asc => "asc",
             };
-            query_string.push_str(&format!("orderdirection={}&", order_direction_str));
+            query_string.push_str(&format!("orderdirection={order_direction_str}&"));
         }
 
         query_string.trim_end_matches('&').to_string()

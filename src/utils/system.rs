@@ -14,8 +14,7 @@ const UNIX_PATH: &str = "/VintagestoryData/Mods/";
 /// This function will panic if the base directories cannot be determined or if the configuration directory cannot be converted to a string.
 pub fn get_config_dir() -> PathBuf {
     let base_dirs = BaseDirs::new().expect("Could not get base directories");
-    let config_dir = base_dirs.config_dir().to_path_buf();
-    config_dir
+    base_dirs.config_dir().to_path_buf()
 }
 
 /// Get the directory where Vintage Story mods are stored.

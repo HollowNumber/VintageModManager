@@ -59,7 +59,7 @@ impl Encoder {
     pub fn encode(&self, data: &[u8]) -> String {
         let encoded = encode(data);
         self.logger
-            .log_default(&format!("Encoding using `encode` function: {}", encoded));
+            .log_default(&format!("Encoding using `encode` function: {encoded}"));
         encoded
     }
 
@@ -74,7 +74,7 @@ impl Encoder {
     /// A `Result` containing a vector of bytes or a `EncodingError`.
     pub fn decode(&self, data: &str) -> Result<Vec<u8>, EncodingError> {
         self.logger
-            .log_default(&format!("Decoding using `decode` function: {}", data));
+            .log_default(&format!("Decoding using `decode` function: {data}"));
 
         decode(data).map_err(|e| EncodingError::Decode(e.to_string()))
     }
@@ -91,13 +91,13 @@ impl Encoder {
     pub fn encode_mod_string(&self, mods: &[EncoderData]) -> String {
         let mod_string = self.format_encoder_data(mods);
         self.logger
-            .log_default(&format!("Mod string before encoding: {}", mod_string));
+            .log_default(&format!("Mod string before encoding: {mod_string}"));
 
         // Compress
         let compressed = self.compress(&mod_string).unwrap();
         let encoded = self.encode(&compressed);
         self.logger
-            .log_default(&format!("Encoded mod string: {}", encoded));
+            .log_default(&format!("Encoded mod string: {encoded}"));
         encoded
     }
 
@@ -133,13 +133,10 @@ impl Encoder {
     ///```
     ///
     fn format_encoder_data(&self, mods: &[EncoderData]) -> String {
-        let mod_string = mods
-            .iter()
+        mods.iter()
             .map(|mod_info| format!("{}|{}", mod_info.mod_id, mod_info.mod_version))
             .collect::<Vec<String>>()
-            .join(";");
-
-        mod_string
+            .join(";")
     }
 
     /// Decodes a compact string to a list of `EncoderData`.
@@ -172,7 +169,7 @@ impl Encoder {
             .collect();
 
         self.logger
-            .log_default(&format!("Decoded mod string: {:?}", mods));
+            .log_default(&format!("Decoded mod string: {mods:?}"));
         mods
     }
 
@@ -191,7 +188,7 @@ impl Encoder {
         encoder.write_all(data.as_bytes())?;
         let compressed_data = encoder.into_inner();
         self.logger
-            .log_default(&format!("Compressed data: {:?}", compressed_data));
+            .log_default(&format!("Compressed data: {compressed_data:?}"));
         Ok(compressed_data)
     }
 }

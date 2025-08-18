@@ -516,7 +516,7 @@ impl ModManager {
 
     async fn download_mod(&self, mod_data: &str) -> Result<(), ModManagerError> {
         let query = Query::new()
-            .with_text(&vec![mod_data.to_string()])
+            .with_text(&[mod_data.to_string()])
             .with_order_by(OrderBy::Downloads)
             .build();
 

@@ -87,7 +87,7 @@ impl FileManager {
     /// A `Result` indicating success or failure.
     pub fn save_file_sync(&self, file_name: &str, bytes: &[u8]) -> Result<(), std::io::Error> {
         self.logger
-            .log_default(&format!("Saving file: {}", file_name));
+            .log_default(&format!("Saving file: {file_name}"));
         let mut file = File::create(file_name)?;
         std::io::Write::write_all(&mut file, bytes)?;
         Ok(())
@@ -130,7 +130,7 @@ impl FileManager {
     /// A `Result` containing the file content as `Bytes` or an error.
     pub fn read_file_sync(&self, file_name: &str) -> Result<Vec<u8>, std::io::Error> {
         self.logger
-            .log_default(&format!("Reading file: {}", file_name));
+            .log_default(&format!("Reading file: {file_name}"));
         let mut file = File::open(file_name)?;
         let mut contents = Vec::new();
         Read::read_to_end(&mut file, &mut contents)?;
@@ -188,7 +188,7 @@ impl FileManager {
     /// A `Result` indicating success or failure.
     pub fn delete_file_sync(&self, file_name: &str) -> Result<(), std::io::Error> {
         self.logger
-            .log_default(&format!("Deleting file: {}", file_name));
+            .log_default(&format!("Deleting file: {file_name}"));
         std::fs::remove_file(file_name)?;
         Ok(())
     }
@@ -204,7 +204,7 @@ impl FileManager {
     /// A `Result` containing `true` if the file exists, `false` if it does not, or an error.
     pub async fn file_exists(&self, file_name: &str) -> Result<bool, std::io::Error> {
         self.logger
-            .log_default(&format!("Checking if file exists: {}", file_name));
+            .log_default(&format!("Checking if file exists: {file_name}"));
         match fs::metadata(file_name).await {
             Ok(_) => Ok(true),
             Err(e) => {
@@ -368,7 +368,7 @@ mod tests {
 
         let mut file = fs::File::create(&test_file_path).await.unwrap();
 
-        println!("test_file_path: {:?}", test_file_path);
+        println!("test_file_path: {test_file_path:?}");
 
         file.write_all(test_content).await.unwrap();
 

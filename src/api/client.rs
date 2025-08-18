@@ -72,7 +72,7 @@ impl VintageApiHandler {
         Self::parse_to_api_response(identifier, &body)
     }
 
-    fn parse_to_api_response<T>(identifier: T, body: &String) -> Result<ModApiResponse, ClientError>
+    fn parse_to_api_response<T>(identifier: T, body: &str) -> Result<ModApiResponse, ClientError>
     where
         T: ToString,
     {
@@ -90,7 +90,7 @@ impl VintageApiHandler {
 
                 // If it's neither a valid response nor a 404, return parsing error
                 Err(ClientError::Json(
-                    serde_json::from_str::<ModApiResponse>(&body).unwrap_err(),
+                    serde_json::from_str::<ModApiResponse>(body).unwrap_err(),
                 ))
             }
         }
@@ -159,7 +159,7 @@ impl VintageApiHandler {
     ) -> Result<(bool, Release), ClientError> {
         let mod_id = mod_info.modid.clone().expect("Mod id not found");
         self.logger
-            .log_default(&format!("Checking for updates for mod: {}", mod_id));
+            .log_default(&format!("Checking for updates for mod: {mod_id}"));
         let api_mod = self.get_mod(&mod_id).await?;
         self.logger.log_default(&format!(
             "Mod info version: {:?} -- API version: {:?}",

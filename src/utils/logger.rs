@@ -32,7 +32,7 @@ impl fmt::Display for LogLevel {
             LogLevel::Error => "ERROR",
         };
 
-        write!(f, "{}", level_str)
+        write!(f, "{level_str}")
     }
 }
 
@@ -100,7 +100,7 @@ impl Logger {
         );
 
         // Print to console
-        println!("{}", log_message);
+        println!("{log_message}");
 
         // Write to file if file logging is enabled
         if let Some(file) = &self.file {

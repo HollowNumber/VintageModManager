@@ -112,8 +112,8 @@ impl Terminal {
             println!("{}", header_row.bold());
             println!("{}", separator.dimmed());
         } else {
-            println!("{}", header_row);
-            println!("{}", separator);
+            println!("{header_row}");
+            println!("{separator}");
         }
 
         // Print data rows
@@ -134,7 +134,7 @@ impl Terminal {
                 })
                 .collect::<Vec<_>>()
                 .join(" | ");
-            println!("{}", row);
+            println!("{row}");
         }
     }
 }
